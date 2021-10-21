@@ -96,14 +96,19 @@ class NormalGenerator:
 class Transaction:
     def __init__(self, timestamp: datetime, 
                 token_in_amount: float, token_in: str, 
-                token_out_amount: float, token_out: str, 
+                token_out: str, 
                 slope: float=0.05):
         self.datetime_timestamp = timestamp
         self.token_in = token_in
         self.token_in_amount = token_in_amount
         self.token_out = token_out
-        self.token_out_amount = token_out_amount
+        self.token_out_amount = None
         self.slope = slope
+
+
+
+    def set_token_out_amount(self, token_out_amount: float):
+        self.token_out_amount = token_out_amount
         
     
     def to_string(self) -> str:
@@ -159,7 +164,7 @@ class MonteCarloTransactionSimulator:
         self.transaction_history.clear()
     
     
-    def generate_transactions(self, current_timestamp: datetime, current_amm_coef: float):
+    def generate_transactions(self, current_timestamp: datetime):
         """
         Generates transactions list with timestamps and values assigned to 
         
@@ -175,12 +180,10 @@ class MonteCarloTransactionSimulator:
         
         # create transactions and form history with giving current new transaction
         for index in range(len(timestamps)):
-            token_out_value = token_in_values[index] * current_amm_coef
             new_transaction = Transaction(
                 timestamp=timestamps[index], 
                 token_in_amount=token_in_values[index], 
                 token_in=self.first_currency,
-                token_out_amount=token_out_value,
                 token_out=self.second_currency
             )
             self.transaction_history.append(new_transaction)
@@ -234,7 +237,7 @@ simulator = MonteCarloTransactionSimulator(
 # reviewable timestamp will be updated by shifting it further conform generator cycle size
 current_iteration_timestamp = datetime.now()
 for index in range(60*24*7):
-    simulator.generate_transactions(current_iteration_timestamp, current_amm_coef=0.15)
+    simulator.generate_transactions(current_iteration_timestamp)
     current_iteration_timestamp += timedelta(milliseconds=randrange(simulator.frequency_generator.cycle_size))
 
 # show all generated transactions
