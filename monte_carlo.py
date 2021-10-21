@@ -8,7 +8,6 @@ from random import randrange
 import pandas as pd
 
 
-
 class PoissonGenerator:
     """
     Generate transactions timestamps list. Current version works with milliseconds.
@@ -95,16 +94,29 @@ class NormalGenerator:
 
 
 class Transaction:
-    def __init__(self, id: int, timestamp: datetime, value: float):
-        self.id = id
-        self.timestamp = timestamp
-        self.value = value
+    def __init__(self, timestamp: datetime, 
+                token_in_amount: float, token_in: str, 
+                token_out_amount: float, token_out: str, 
+                slope: float=0.05):
+        self.datetime_timestamp = timestamp
+        self.token_in = token_in
+        self.token_in_amount = token_in_amount
+        self.token_out = token_out
+        self.token_out_amount = token_out_amount
+        self.slope = slope
         
     
     def to_string(self) -> str:
-        return str('Transaction {id = ' + str(self.id) + ', timestamp = "' + str(self.timestamp) + '", value = ' + str(self.value)) + '}'
-
-
+        return str(
+            'Transaction {datetime timestamp = ' + str(self.datetime_timestamp) + 
+            ', token in amount = "' + str(self.token_in_amount) + 
+            '", token in name = ' + str(self.token_in) + 
+            ', token out amount = ' + str(self.token_out_amount) + 
+            ', token out name = ' + str(self.token_out) + 
+            ', slope = ' + str(self.slope) + '}'
+        )
+    
+    
 
 class MonteCarloTransactionSimulator:
     """
@@ -112,18 +124,18 @@ class MonteCarloTransactionSimulator:
     distribution and transaction values using normal distribution (time metrics - milliseconds)
     """
     def __init__(
-        self, transaction_density_generator: PoissonGenerator, transaction_values_generator: NormalGenerator, 
+        self, frequency_generator: PoissonGenerator, token_in_generator: NormalGenerator, 
         first_currency: str, second_currency: str
     ):
         """
         Create a Monte-Carlo transaction simulator
         
         Keyword_arguments:
-        transaction_density_generator (PoissonGenerator) -- Poisson transaction distribution generator
-        transaction_values_generator (NormalGenerator) -- Normal transaction distribution generator
+        frequency_generator (PoissonGenerator) -- Poisson transaction distribution generator
+        token_in_generator (NormalGenerator) -- Normal transaction distribution generator
         """
-        self.transaction_density_generator = transaction_density_generator
-        self.transaction_values_generator = transaction_values_generator
+        self.frequency_generator = frequency_generator
+        self.token_in_generator = token_in_generator
         self.first_currency = first_currency
         self.second_currency = second_currency
         self.transaction_history = []
@@ -137,7 +149,7 @@ class MonteCarloTransactionSimulator:
         mu (float) -- mean transaction price (default 0.0)
         sigma (float) -- standard deviation of transaction price (default 0.0)
         """
-        self.transaction_density_generator.reset_params(mu, sigma)
+        self.frequency_generator.reset_params(mu, sigma)
         
         
     def clear_transaction_history(self):
@@ -147,22 +159,38 @@ class MonteCarloTransactionSimulator:
         self.transaction_history.clear()
     
     
-    def generate_transactions(self, current_timestamp: datetime):
+    def generate_transactions(self, current_timestamp: datetime, current_amm_coef: float):
         """
         Generates transactions list with timestamps and values assigned to 
         
         Keyword arguments:
         current_timestamp (datetime) -- initial datetime point from where cycle will be reviewed
+        current_amm_coef (float) -- current AMM market coefficient that defines price of out
+            token relative to in token
         """
-        # generate timestamps (and sort them) and generate transaction values
-        timestamps = self.transaction_density_generator.generate_transactions(current_timestamp)
+        # generate timestamps and token in values
+        timestamps = self.frequency_generator.generate_transactions(current_timestamp)
         timestamps.sort()
-        values = self.transaction_values_generator.generate_transactions(len(timestamps))
+        token_in_values = self.token_in_generator.generate_transactions(len(timestamps))
         
-        # create transactions, appending them to the transaction history
+        # create transactions and form history with giving current new transaction
         for index in range(len(timestamps)):
-            new_transaction = Transaction(index, timestamps[index], values[index])
+            token_out_value = token_in_values[index] * current_amm_coef
+            new_transaction = Transaction(
+                timestamp=timestamps[index], 
+                token_in_amount=token_in_values[index], 
+                token_in=self.first_currency,
+                token_out_amount=token_out_value,
+                token_out=self.second_currency
+            )
             self.transaction_history.append(new_transaction)
+
+
+    def get_history(self) -> list:
+        """
+        Get transaction history
+        """
+        return self.transaction_history
             
             
     def transaction_history_to_csv(self, filename: str):
@@ -173,16 +201,17 @@ class MonteCarloTransactionSimulator:
         filename (str) -- name of .csv file where to write data
         """
         # form empty dataframe
-        transaction_history_dataframe = pd.DataFrame(columns=['id', 'FirstCurrency', 'SecondCurrency', 'Timestamp', 'Value'])
+        transaction_history_dataframe = pd.DataFrame(columns=['datetime_timestamp', 'TokenIn', 'TokenInAmount', 'TokenOut', 'TokenOutAmount', 'Slope'])
         
         # append all new records to the dataframe
         for index in range(len(self.transaction_history)):
             new_row = {
-                'id': self.transaction_history[index].id, 
-                'FirstCurrency': self.first_currency, 
-                'SecondCurrency': self.second_currency, 
-                'Timestamp': self.transaction_history[index].timestamp,
-                'Value': self.transaction_history[index].value
+                'datetime_timestamp': self.transaction_history[index].datetime_timestamp,
+                'TokenIn': self.transaction_history[index].token_in,
+                'TokenInAmount': self.transaction_history[index].token_in_amount, 
+                'TokenOut': self.transaction_history[index].token_out,
+                'TokenOutAmount': self.transaction_history[index].token_out_amount,
+                'Slope': self.transaction_history[index].slope
             }
             transaction_history_dataframe = transaction_history_dataframe.append(new_row, ignore_index=True)
         
@@ -192,12 +221,12 @@ class MonteCarloTransactionSimulator:
                 transaction_history_dataframe.to_csv(filename, mode='a', header=False)
         except IOError:
             transaction_history_dataframe.to_csv(filename)
-
-
+            
+            
 
 # example of creating simulation
 simulator = MonteCarloTransactionSimulator(
-    PoissonGenerator(cycle_size=60000, mean_occurencies=5), 
+    PoissonGenerator(cycle_size=60000, mean_occurencies=500), 
     NormalGenerator(mu=10, sigma=5), 'ETH', 'DAI'
 )
 
@@ -205,12 +234,12 @@ simulator = MonteCarloTransactionSimulator(
 # reviewable timestamp will be updated by shifting it further conform generator cycle size
 current_iteration_timestamp = datetime.now()
 for index in range(60*24*7):
-    simulator.generate_transactions(current_iteration_timestamp)
-    current_iteration_timestamp += timedelta(milliseconds=randrange(simulator.transaction_density_generator.cycle_size))
+    simulator.generate_transactions(current_iteration_timestamp, current_amm_coef=0.15)
+    current_iteration_timestamp += timedelta(milliseconds=randrange(simulator.frequency_generator.cycle_size))
 
 # show all generated transactions
-for index in range(len(simulator.transaction_history)):
-    print(simulator.transaction_history[index].to_string())
+# for index in range(len(simulator.transaction_history)):
+#     print(simulator.transaction_history[index].to_string())
     
 # write all generated transactions (entire generated transaction history) to csv file
-simulator.transaction_history_to_csv('history.csv')
+# simulator.transaction_history_to_csv('history.csv')
