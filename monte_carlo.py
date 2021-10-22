@@ -3,7 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import math
 from datetime import datetime, timedelta
-from scipy.stats import poisson
+from scipy.stats import poisson, truncnorm
 from random import randrange
 import pandas as pd
 
@@ -58,30 +58,65 @@ class NormalGenerator:
     Generate transaction values conform normal distribution
     """
     
-    def __init__(self, mu: float=0, sigma: float=0):
+    def __init__(self, mu: float, sigma: float, lower_bound: float, upper_bound: float):
         """
         Create a normal distribution generator
         
         Keyword_arguments:
-        mu (float) -- mean transaction price (default 0.0)
-        sigma (float) -- standard deviation of transaction price (default 0.0)
+        mu (float) -- mean transaction price
+        sigma (float) -- standard deviation of transaction price
+        lower_bound (float) -- distribution lower bound
+        upper_bound (float) -- distribution upper bound
         """
+        if lower_bound > upper_bound:
+            raise ValueError("creation: lower bound value can't be bigger than upper bound")
+        elif mu < lower_bound:
+            raise ValueError("creation: mean value (mu) can't be lower than lower bound")
+        elif mu > upper_bound:
+            raise ValueError("creation: mean value (mu) can't be bigger than upper bound")
+        
+        self.lower_bound = lower_bound
+        self.upper_bound = upper_bound
         self.mu = mu
         self.sigma = sigma
       
     
-    def reset_params(self, mu: float, sigma: float):
+    def reset_mean_and_dev(self, mu: float, sigma: float):
         """
-        Change parameters of existing generator
+        Change mean and standard deviation parameters of existing generator
         
         Keyword_arguments:
-        mu (float) -- mean transaction price (default 0.0)
-        sigma (float) -- standard deviation of transaction price (default 0.0)
+        mu (float) -- mean transaction price
+        sigma (float) -- standard deviation of transaction price
         """
+        if mu < self.lower_bound:
+            raise ValueError("editing mu and sigma: mean value (mu) can't be lower than lower bound")
+        elif mu > self.upper_bound:
+            raise ValueError("editing mu and sigma: mean value (mu) can't be bigger than upper bound")
+        
         self.mu = mu
         self.sigma = sigma
+        
+        
+    def reset_lower_and_upper_bound(self, lower_bound: float, upper_bound: float):
+        """
+        Change distribution lower and upper bounds
+        
+        Keyword arguments:
+        lower_bound (float) -- distribution lower bound
+        upper_bound (float) -- distribution upper bound
+        """
+        if lower_bound > upper_bound:
+            raise ValueError("bounds editing: lower bound value can't be bigger than upper bound")
+        elif self.mu < lower_bound:
+            raise ValueError("bounds editing: mean value (mu) can't be lower than lower bound")
+        elif self.mu > upper_bound:
+            raise ValueError("bounds editing: mean value (mu) can't be bigger than upper bound")
+        
+        self.lower_bound = lower_bound
+        self.upper_bound = upper_bound
+        
     
-
     def generate_transactions(self, transactions_count: int) -> list:
         """
         Generate transaction prices list considering mu and sigma
@@ -89,11 +124,18 @@ class NormalGenerator:
         Keyword_arguments:
         transactions_count (int) -- required transactions count
         """
-        return np.random.normal(self.mu, self.sigma, transactions_count)
+        return truncnorm.rvs(
+            (self.lower_bound - self.mu)/self.sigma, 
+            (self.upper_bound - self.mu)/self.sigma, 
+            loc=self.mu, scale=self.sigma, size=transactions_count
+        )
 
 
 
 class Transaction:
+    """
+    Class with information regarding swapping transaction
+    """
     def __init__(self, timestamp: datetime, 
                 token_in_amount: float, token_in: str, 
                 token_out: str, 
@@ -112,6 +154,9 @@ class Transaction:
         
     
     def to_string(self) -> str:
+        """
+        form a string that can be used for showing information on console
+        """
         return str(
             'Transaction {datetime timestamp = ' + str(self.datetime_timestamp) + 
             ', token in amount = "' + str(self.token_in_amount) + 
@@ -138,6 +183,8 @@ class MonteCarloTransactionSimulator:
         Keyword_arguments:
         frequency_generator (PoissonGenerator) -- Poisson transaction distribution generator
         token_in_generator (NormalGenerator) -- Normal transaction distribution generator
+        first_currency -- name of the first token in transaction
+        second_currency -- name of the second token in transaction
         """
         self.frequency_generator = frequency_generator
         self.token_in_generator = token_in_generator
@@ -157,6 +204,10 @@ class MonteCarloTransactionSimulator:
         self.frequency_generator.reset_params(mu, sigma)
         
         
+    def reset_values_generator_bounds(self, lower_bound: float, upper_bound: float):
+        self.token_in_genererator.reset_lower_and_upper_bound(lower_bound=lower_bound, upper_bound=upper_bound)
+        
+        
     def clear_transaction_history(self):
         """
         Clear all records from transaction history
@@ -166,19 +217,20 @@ class MonteCarloTransactionSimulator:
     
     def generate_transactions(self, current_timestamp: datetime):
         """
-        Generates transactions list with timestamps and values assigned to 
+        Generates transactions list with timestamps and token_in values. All transactions are recorded
+        to the 'transaction_history' variable.
         
         Keyword arguments:
         current_timestamp (datetime) -- initial datetime point from where cycle will be reviewed
         current_amm_coef (float) -- current AMM market coefficient that defines price of out
             token relative to in token
         """
-        # generate timestamps and token in values
+        # generate timestamps and token_in values
         timestamps = self.frequency_generator.generate_transactions(current_timestamp)
         timestamps.sort()
         token_in_values = self.token_in_generator.generate_transactions(len(timestamps))
         
-        # create transactions and form history with giving current new transaction
+        # form new transactions and record them into 'transaction history' variable
         for index in range(len(timestamps)):
             new_transaction = Transaction(
                 timestamp=timestamps[index], 
@@ -204,7 +256,9 @@ class MonteCarloTransactionSimulator:
         filename (str) -- name of .csv file where to write data
         """
         # form empty dataframe
-        transaction_history_dataframe = pd.DataFrame(columns=['datetime_timestamp', 'TokenIn', 'TokenInAmount', 'TokenOut', 'TokenOutAmount', 'Slope'])
+        transaction_history_dataframe = pd.DataFrame(columns=[
+            'datetime_timestamp', 'TokenIn', 'TokenInAmount', 'TokenOut', 'TokenOutAmount', 'Slope'
+        ])
         
         # append all new records to the dataframe
         for index in range(len(self.transaction_history)):
@@ -218,7 +272,7 @@ class MonteCarloTransactionSimulator:
             }
             transaction_history_dataframe = transaction_history_dataframe.append(new_row, ignore_index=True)
         
-        # if there is such file -> append new records to it, otherwise create a new file from existing table
+        # either append new records to the existing file, or create a new one from existing table
         try:
             with open(filename) as f:
                 transaction_history_dataframe.to_csv(filename, mode='a', header=False)
@@ -227,22 +281,27 @@ class MonteCarloTransactionSimulator:
             
             
 
-# example of creating simulation
+# create simulator with specifying parameters of the normal distribution for token_in
+# value estimation and Poisson distribution for transaction frequency estimation
 simulator = MonteCarloTransactionSimulator(
     PoissonGenerator(cycle_size=60000, mean_occurencies=500), 
-    NormalGenerator(mu=10, sigma=5), 'ETH', 'DAI'
+    NormalGenerator(mu=10, sigma=5, lower_bound=5, upper_bound=15), 'ETH', 'DAI'
 )
 
-#  set starting point to be as current timestamp and then start loop, where after each iteration 
-# reviewable timestamp will be updated by shifting it further conform generator cycle size
+# set current timestamp as starting point and start loop, where each iteration shifts reviewable
+# timestamp further conform simulator cycle size
 current_iteration_timestamp = datetime.now()
 for index in range(60*24*7):
     simulator.generate_transactions(current_iteration_timestamp)
     current_iteration_timestamp += timedelta(milliseconds=randrange(simulator.frequency_generator.cycle_size))
 
-# show all generated transactions
+# show generated transactions history
 # for index in range(len(simulator.transaction_history)):
 #     print(simulator.transaction_history[index].to_string())
     
-# write all generated transactions (entire generated transaction history) to csv file
+# write generated transactions history to csv file
 # simulator.transaction_history_to_csv('history.csv')
+
+# show generated transactions history
+for index in range(int(len(simulator.transaction_history) / 10)):
+    print(simulator.transaction_history[index].to_string())
