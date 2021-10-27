@@ -43,3 +43,5 @@ nodeLanguageServer/**
 nodeLanguageServer.*/**
 dist/**
 *.csv
+notebooks
+monte_carlo2.py

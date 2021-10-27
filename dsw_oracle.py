@@ -50,9 +50,9 @@ class DSWOracle:
             price_X_cumulative, price_Y_cumulative = amm.current_cumulative_prices(block_timestamp)
             observation.timestamp = block_timestamp
             observation.price_X_cumulative = price_X_cumulative
-            observation.price_X_cumulative = price_Y_cumulative
+            observation.price_Y_cumulative = price_Y_cumulative
 
-            logger.debug(f"Inside update, time_elapsed={time_elapsed}, updated observation: {observation}")
+            logger.error(f"Inside update, time_elapsed={time_elapsed}, updated observation: {observation}")
 
 
     
@@ -61,7 +61,7 @@ class DSWOracle:
 
         observation_index = self.observation_index_of(block_timestamp)
         first_observation_index = (observation_index + 1) % self.granularity
-      #  print(first_observation_index, len(self.observations))
+        #  print(first_observation_index, len(self.observations))
         first_observation = self.observations[first_observation_index]
 
         logger.debug(f"First observation: {first_observation}")
@@ -73,7 +73,22 @@ class DSWOracle:
         price_average = (price_comulative_end - price_comulative_start) / time_elapsed
         amount_out = price_average * amount_in
 
+      #  print(price_average)
+      #  print(time_elapsed)
+    #    print((price_comulative_end - price_comulative_start))
+
         return amount_out
+
+
+    def can_consult(self, block_timestamp):
+        if len(self.observations) <= 0:
+            return False
+
+        first_observation = self.get_first_observation_in_window(block_timestamp)
+
+        time_elapsed = block_timestamp - first_observation.timestamp
+
+        return time_elapsed <= self.window_size
 
 
     def consult(self, token_in: str, amount_in: float, token_out: str, block_timestamp: int):
@@ -91,4 +106,5 @@ class DSWOracle:
 _dsw_oracle = DSWOracle(WINDOW_SIZE, GRANULARITY)
 
 update = _dsw_oracle.update
+can_consult = _dsw_oracle.can_consult
 consult = _dsw_oracle.consult
