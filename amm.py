@@ -26,6 +26,8 @@ class AMM:
         self.pool_before_swap_list = []
         self.pool_after_swap_list = []
 
+        self.save_config()
+
     
     def get_X(self):
         return self.X
@@ -112,6 +114,15 @@ class AMM:
            # print(self.reserve_X / self.reserve_Y)
 
         self.block_timestamp_last = block_timestamp # TODO: maybe remove blocktimestamplast assign in get method
+
+
+    def save_config(self):
+        with open('data/amm_initial_config.txt', 'w') as f:
+            f.write(f"X = `{self.X}`\n")
+            f.write(f"Y = `{self.Y}`\n")
+            f.write(f"reserve_X = `{self.reserve_X}`\n")
+            f.write(f"reserve_Y = `{self.reserve_Y}`\n")
+            f.write(f"is_volatility_mitigator_on = `{self.is_volatility_mitigator_on}`")
  
 
 _amm = AMM("X", "Y", 800000, 800000, True)
