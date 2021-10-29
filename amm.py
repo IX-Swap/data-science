@@ -29,6 +29,25 @@ class AMM:
         self.save_config()
 
     
+    def reset(self, X, Y, reserve0_X, reserve0_Y, is_volatility_mitigator_on):
+        self.X = X
+        self.Y = Y
+        self.reserve_X = reserve0_X
+        self.reserve_Y = reserve0_Y
+        self.price_X_cumulative_last = 0
+        self.price_Y_cumulative_last = 0
+        self.k_last = self.reserve_X * self.reserve_Y
+        self.is_volatility_mitigator_on = is_volatility_mitigator_on
+        self.start_time = None
+        self.block_timestamp_last = None
+
+        self.pool_before_swap_list = []
+        self.pool_after_swap_list = []
+
+        self.save_config()
+
+
+    
     def get_X(self):
         return self.X
 
@@ -71,15 +90,15 @@ class AMM:
 
 
 
-    def export_pool_states_to_csv(self):
+    def export_pool_states_to_csv(self, filename_before, filename_after):
         before_df = pd.DataFrame(self.pool_before_swap_list, columns=['transaction_id', 'reserve_X', 'reserve_Y', 'k', 'price_X_cumulative', 
                                                                         'price_Y_cumulative', 'is_volatility_mitigator_on'])
 
         after_df = pd.DataFrame(self.pool_after_swap_list, columns=['transaction_id', 'reserve_X', 'reserve_Y', 'k', 'price_X_cumulative', 
                                                                         'price_Y_cumulative', 'is_volatility_mitigator_on'])
 
-        before_df.to_csv('data/before_pool.csv', index=False)
-        after_df.to_csv('data/after_pool.csv', index=False)
+        before_df.to_csv(filename_before, index=False)
+        after_df.to_csv(filename_after, index=False)
 
 
     def update_reserve_X(self, delta: float):
@@ -136,5 +155,6 @@ reserve_X = _amm.get_reserve_X
 reserve_Y = _amm.get_reserve_Y
 save_pool_state = _amm.save_pool_state
 export_pool_states_to_csv = _amm.export_pool_states_to_csv
+reset = _amm.reset
 
 

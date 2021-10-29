@@ -24,6 +24,9 @@ class BlockChain:
 
         self.pending_transactions.append(swap_transaction)
 
+    def force_finish(self):
+        self.create_block()
+
 
     def create_block(self):
         self.block_transactions = self.pending_transactions 
@@ -40,7 +43,7 @@ class BlockChain:
         self.curr_block_number += 1
 
 
-    def transactions_to_csv(self):
+    def transactions_to_csv(self, filename, reset_state=False):
         transaction_history_list = []
 
         # append all new records to the dataframe
@@ -50,7 +53,17 @@ class BlockChain:
                                                 
         history_df = pd.DataFrame(transaction_history_list, columns=['id', 'token_in', 'token_out', 'token_in_amount', 'token_out_amount_min', 'token_out_amount' , 'system_fee', 'mitigator_check_status', 'oracle_amount_out', 'out_amount_diff', 'slice_factor', 'slice_factor_curve', 'status', 'block_number', 'block_timestamp', 'transaction_timestamp',  ])
 
-        history_df.to_csv('data/amm.csv', index=False)
+        history_df.to_csv(filename, index=False)
+
+        if reset_state:
+            self.__reset_state()
+
+
+    def __reset_state(self):
+        self.curr_block_number = 0
+        self.curr_block_timestamp = None
+        self.transaction_history = []
+        self.pending_transactions = []
 
 
 _blockchain = BlockChain(BLOCK_TIME)
