@@ -60,7 +60,7 @@ class CauchyGenerator:
     """
     Generate transaction values conform Cauchy distribution
     """
-    def __init__(self, loc: float, scale: float):
+    def __init__(self, loc: float, scale: float, limit: int):
         """
         Create Cauchy generator with initial parameters
         
@@ -71,9 +71,10 @@ class CauchyGenerator:
         """
         self.loc = loc
         self.scale = scale
+        self.limit = limit
       
     
-    def reset_params(self, loc: float, scale: float):
+    def reset_params(self, loc: float, scale: float, limit: int):
         """
         Change mean and standard deviation parameters of existing generator
         
@@ -84,6 +85,7 @@ class CauchyGenerator:
         """
         self.loc = loc
         self.scale = scale
+        self.limit = limit
         
     
     def generate_transactions(self, transactions_count: int) -> list:
@@ -93,7 +95,8 @@ class CauchyGenerator:
         Keyword_arguments:
         transactions_count (int) -- required transactions count
         """
-        return halfcauchy.rvs(size=transactions_count, loc=self.loc, scale=self.scale)
+        value = halfcauchy.rvs(size=transactions_count, loc=self.loc, scale=self.scale)
+        return value / ((value // self.limit) + 1)
 
 
 
