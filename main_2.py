@@ -16,15 +16,15 @@ import settings
 logging.basicConfig(level=logging.INFO, format='%(asctime)s:%(name)s:%(message)s', datefmt="%m/%d/%Y %I:%M:%S %p")
 logger = logging.getLogger(__name__)
 
-EXPERIMENT_ID = 37
+EXPERIMENT_ID = 48
 X_NAME = 'X'
 Y_NAME = 'Y'
 
 def main(): 
-    occurences_per_min_list = [10]
-    initial_reserves_usd_list = [100000000]
+    occurences_per_min_list = [4.6443148688046645]
+    initial_reserves_usd_list = [1134950000.249763]
    # initial_reserves_usd_list = [1000, 10000, 100000]
-    ratios_sec_usd_list = [1]
+    ratios_sec_usd_list = [4606.14]
     cauchy_scale_list = [15000]
     #cauchy_scale_list = [5000, 10000, 15000]
     volatility_mitigator_list = [False, True]
@@ -32,9 +32,11 @@ def main():
     window_size_list = [24]
     granularity_list = [24] #todo: update period
 
-    
+    initial_reserves_usd_factor = [0.0001, 0.001, 0.01, 0.01, 1]
+    occurences_per_min_factor = [0.1, 1, 10]
 
-    grid = itertools.product(occurences_per_min_list, initial_reserves_usd_list, ratios_sec_usd_list, cauchy_scale_list, price_tollerance_threshold_list, window_size_list, granularity_list, volatility_mitigator_list)
+    grid = itertools.product(occurences_per_min_list, initial_reserves_usd_list, ratios_sec_usd_list, cauchy_scale_list, price_tollerance_threshold_list, window_size_list, granularity_list, volatility_mitigator_list,
+        initial_reserves_usd_factor, occurences_per_min_factor)
 
     os.makedirs(f'data/experiment_{EXPERIMENT_ID}')
     
@@ -52,8 +54,11 @@ def main():
     start_time = datetime.now()
     iteration = 0
     print("starting...")
-    for mean_occurencies_per_min, initial_reserves_usd, ratios_sec_usd, cauchy_scale, price_tollerance_threshold, window_size, granularity, vm in grid:
+    for mean_occurencies_per_min, initial_reserves_usd, ratios_sec_usd, cauchy_scale, price_tollerance_threshold, window_size, granularity, vm, i_r_f, o_p_m_f in grid:
         settings.PRICE_TOLLERANCE_THRESHOLD = price_tollerance_threshold
+
+        initial_reserves_usd *= i_r_f
+        mean_occurencies_per_min *= o_p_m_f
 
         os.makedirs(f'data/experiment_{EXPERIMENT_ID}/{iteration}')
         save_config(f'data/experiment_{EXPERIMENT_ID}/{iteration}/config.txt', mean_occurencies_per_min, initial_reserves_usd, ratios_sec_usd, cauchy_scale, price_tollerance_threshold, window_size, granularity, vm)
@@ -61,8 +66,18 @@ def main():
         transactions_history1_path = f'data/experiment_{EXPERIMENT_ID}/{iteration}/history1.csv'
         transactions_history2_path = f'data/experiment_{EXPERIMENT_ID}/{iteration}/history2.csv'
 
-        simulate_transactions(start_time, mean_occurencies_per_min, X_NAME, Y_NAME, transactions_history1_path, cauchy_scale, 1)
-        simulate_transactions(start_time, mean_occurencies_per_min, Y_NAME, X_NAME, transactions_history2_path, cauchy_scale, 1)
+
+
+        eth_simulator = MonteCarloTransactionSimulator(frequency_generator=PoissonGenerator(cycle_size=60000, mean_occurencies=5.207725947521866 * o_p_m_f),
+                                                                token_in_generator=CauchyGenerator(0, 0.33, 60),
+                                                                first_currency="X", second_currency="Y")
+
+        usdc_simulator = MonteCarloTransactionSimulator(frequency_generator=PoissonGenerator(cycle_size=60000, mean_occurencies=4.6443148688046645 * o_p_m_f),
+                                                                token_in_generator=CauchyGenerator(0, 2200, 300000),
+                                                                first_currency="Y", second_currency="X")
+
+        simulate_transactions(start_time, eth_simulator, transactions_history1_path, )
+        simulate_transactions(start_time, usdc_simulator, transactions_history2_path, )
 
         transactions1_df = pd.read_csv(transactions_history1_path)
         transactions2_df = pd.read_csv(transactions_history2_path)
@@ -75,9 +90,8 @@ def main():
 
         start_time = all_transactions['datetime_timestamp'].min()
 
-
-
         for _, row in all_transactions.iterrows():
+            blockchain.update(row['datetime_timestamp'].second)
             amm.reserve_X() / amm.reserve_Y()
             
             if row['datetime_timestamp'] - start_time <= timedelta(days=1):
@@ -152,15 +166,26 @@ def simulate_transactions(start_time, mean_occurencies_per_min, token0, token1, 
 
     current_iteration_timestamp = start_time
 
-    # total_number_transactions = 50000
-    # simulation_seconds_total = int((total_number_transactions + 24*60*mean_occurencies_per_min) / mean_occurencies_per_min) 
-    simulation_seconds_total = 60*24*7
+    total_number_transactions = 50000
+    simulation_seconds_total = int((total_number_transactions + 24*60*mean_occurencies_per_min) / mean_occurencies_per_min) 
+    #simulation_seconds_total = 60*24*7
 
     for _ in range(simulation_seconds_total):
         simulator.generate_transactions(current_iteration_timestamp)
         current_iteration_timestamp += timedelta(milliseconds=simulator.frequency_generator.cycle_size)
 
     simulator.transaction_history_to_csv(transaction_history_filename)
+
+
+def simulate_transactions(start_time, simulator, history_filename):
+    current_iteration_timestamp = start_time
+    simulation_seconds_total = 60*24*5
+
+    for _ in range(simulation_seconds_total):
+        simulator.generate_transactions(current_iteration_timestamp)
+        current_iteration_timestamp += timedelta(milliseconds=simulator.frequency_generator.cycle_size)
+
+    simulator.transaction_history_to_csv(history_filename)
 
 
 def combine_transactions(transactions1_df, transactions2_df):

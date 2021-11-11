@@ -2,6 +2,7 @@ from monte_carlo2 import Transaction
 from enum import Enum
 import dsw_oracle
 from volatility_mitigation import VolatilityMitigatorCheckStatus
+from big_numbers import expand_to_18_decimals
 
 
 class SwapTransactionStatus(Enum):
@@ -10,6 +11,7 @@ class SwapTransactionStatus(Enum):
     BLOCKED_BY_VOLATILITY_MITIGATION = 2
     NOT_ENOUGH_RESERVES = 3
     EXCEEDED_MAX_SLIPPAGE = 4
+    K_ERROR = 5
 
 
 
@@ -25,8 +27,8 @@ class SwapTransaction:
         self.token_out_amount = transaction.token_out_amount
 
         (reserve_in, reserve_out) = self.get_reserves()
-        self.amount_out_min = self.get_amount_out(self.token_in_amount, reserve_in, reserve_out) * (1 - transaction.slope)
-        self.gas_fee = 150
+        self.amount_out_min = self.get_amount_out(self.token_in_amount, reserve_in, reserve_out) * (100 - transaction.slope) // 100
+        self.gas_fee = expand_to_18_decimals(150)
         self.status = SwapTransactionStatus.PENDING
         self.additional = None
         self.block_timestamp = None
@@ -46,11 +48,11 @@ class SwapTransaction:
         return [self.token_in, self.token_out, self.token_in_amount, self.token_out_amount, self.timestamp, self.gas_fee, self.block_timestamp, self.status]
 
 
-    def get_amount_out(self, amount_in: float, reserve_in: float, reserve_out: float):
+    def get_amount_out(self, amount_in: int, reserve_in: int, reserve_out: int):
         amount_in_with_fee = amount_in * 990
         numerator = amount_in_with_fee * reserve_out
         denominator = reserve_in * 1000 + amount_in_with_fee
-        amount_out = numerator / denominator
+        amount_out = numerator // denominator
 
         return amount_out
 
@@ -77,15 +79,29 @@ class SwapTransaction:
         reserve_in, reserve_out = self.get_reserves()
         amount_out = self.token_out_amount = self.get_amount_out(self.token_in_amount, reserve_in, reserve_out) # amount calculated based on current reserves (from amount_in - 1%)
         
+        if amount_out >= reserve_out:
+            return SwapTransactionStatus.NOT_ENOUGH_RESERVES
+
         if amount_out < self.amount_out_min:
             return SwapTransactionStatus.EXCEEDED_MAX_SLIPPAGE
 
+        balance_in = reserve_in + self.token_in_amount
+        balance_out = reserve_out - amount_out
+
+        balance_in_adjusted = balance_in * 1000 - self.token_in_amount * 10
+        balance_out_adjusted = balance_out * 1000 # todo: refactor
+
+        if self.amm.k_last * 1000 * 1000 > balance_in_adjusted * balance_out_adjusted: # todo:remove one * 1000 from out
+            return SwapTransactionStatus.K_ERROR
+
+        k_previous = self.amm.k_last
+    
         if self.token_in == self.amm.X:
             # in case in token0 is a SEC, take the 0.4% of token1 out and leave whole 1% of retained token0 fee in in the pool
-            system_fee = amount_out * 4 / 1000
+            system_fee = amount_out * 4 // 1000
         else:
             # otherwise take the 40% out of 1% retained token0 fee leaving in the pool remaining 60% of the fee (0.6% in total)
-            system_fee = self.token_in_amount * 4 / 1000
+            system_fee = self.token_in_amount * 4 // 1000
 
         # check if there are enough reserve to perform the swap
         if self.token_in == self.amm.X:
@@ -116,6 +132,8 @@ class SwapTransaction:
         if block_transaction:
             return SwapTransactionStatus.BLOCKED_BY_VOLATILITY_MITIGATION
 
+
+
         # update reserves (perform the swap)
         if self.token_in == self.amm.X:
             self.amm.update_reserve_Y(-amount_out)
@@ -124,7 +142,14 @@ class SwapTransaction:
             self.amm.update_reserve_Y(self.token_in_amount)
             self.amm.update_reserve_X(-amount_out)
         
-        self.amm.update_reserve_Y(-system_fee) 
+      #  self.amm.update_reserve_Y(-system_fee) 
         self.system_fee = system_fee
+
+        # todo: check
+        reserve_in, reserve_out = self.get_reserves()
+
+     #   if k_previous > reserve_in * reserve_out:
+    #        print(k_previous, reserve_in, reserve_out)
+
         
         return SwapTransactionStatus.SUCCESS

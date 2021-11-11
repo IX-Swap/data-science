@@ -24,6 +24,18 @@ class BlockChain:
 
         self.pending_transactions.append(swap_transaction)
 
+
+    def update(self, next_transaction_timestamp: int):
+        if self.curr_block_timestamp is None:
+            return
+
+       #s print(next_transaction_timestamp, self.curr_block_timestamp, self.avg_block_time)
+
+        while next_transaction_timestamp > self.curr_block_timestamp + self.avg_block_time:
+            self.create_block()
+
+
+
     def force_finish(self):
         self.create_block()
 
@@ -69,3 +81,4 @@ class BlockChain:
 _blockchain = BlockChain(BLOCK_TIME)
 receive_transaction = _blockchain.receive_transaction
 transaction_to_csv = _blockchain.transactions_to_csv
+update = _blockchain.update

@@ -3,12 +3,13 @@ import logging
 from typing import List
 import amm
 from settings import WINDOW_SIZE, GRANULARITY
-
+import safe_math
+from safe_math import q_decode_144
 
 logger = logging.getLogger(__name__)
 
 class Observation:
-    def __init__(self, timestamp: int, price_X_cumulative: float, price_Y_cumulative: float) -> None:
+    def __init__(self, timestamp: int, price_X_cumulative: int, price_Y_cumulative: int) -> None:
         self.timestamp = timestamp
         self.price_X_cumulative = price_X_cumulative
         self.price_Y_cumulative = price_Y_cumulative
@@ -28,6 +29,12 @@ class DSWOracle:
         self.observations:List[Observation] = []
 
         assert window_size % granularity == 0, "ERROR: WINDOW_SIZE not divisible by GRANULARITY"
+
+    def reset(self, window_size, period_size, granularity):
+        self.window_size = window_size
+        self.period_size = period_size
+        self.granularity = granularity
+        self.observations = []
 
 
     def observation_index_of(self, timestamp: int):
@@ -69,9 +76,9 @@ class DSWOracle:
         return first_observation
 
 
-    def compute_amount_out(self, price_comulative_start: float, price_comulative_end: float, time_elapsed: int, amount_in: float):
-        price_average = (price_comulative_end - price_comulative_start) / time_elapsed
-        amount_out = price_average * amount_in
+    def compute_amount_out(self, price_comulative_start: int, price_comulative_end: int, time_elapsed: int, amount_in: int):
+        price_average = (price_comulative_end - price_comulative_start) // time_elapsed
+        amount_out = q_decode_144(price_average * amount_in)
 
       #  print(price_average)
       #  print(time_elapsed)
@@ -91,7 +98,7 @@ class DSWOracle:
         return time_elapsed <= self.window_size
 
 
-    def consult(self, token_in: str, amount_in: float, token_out: str, block_timestamp: int):
+    def consult(self, token_in: str, amount_in: int, token_out: str, block_timestamp: int):
         first_observation = self.get_first_observation_in_window(block_timestamp)
 
         time_elapsed = block_timestamp - first_observation.timestamp
@@ -108,3 +115,4 @@ _dsw_oracle = DSWOracle(WINDOW_SIZE, GRANULARITY)
 update = _dsw_oracle.update
 can_consult = _dsw_oracle.can_consult
 consult = _dsw_oracle.consult
+reset = lambda window_size, period_size, granularity: _dsw_oracle.reset(window_size, period_size, granularity)
