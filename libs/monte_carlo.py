@@ -104,28 +104,32 @@ class LognormalGenerator:
     """
     Generate transaction values conform Lognormal distribution
     """
-    def __init__(self, mean: float, sigma: float):
+    def __init__(self, mean: float, sigma: float, limit: float):
         """
         Create Log-normal generator with initial parameters
         
         Keyword_arguments:
         mean (float) -- mean distribution value
         sigma (float) -- standard deviation
+        limit (float) -- limit of the distribution
         """
         self.mean = mean
         self.sigma = sigma
-      
+        self.limit = limit
+
     
-    def reset_params(self, mean: float, sigma: float):
+    def reset_params(self, mean: float, sigma: float, limit: float):
         """
         Change log-normal generator parameters
         
         Keyword_arguments:
         mean (float) -- mean distribution value
         sigma (float) -- standard deviation
+        limit (float) -- limit of the distribution
         """
         self.mean = mean
         self.sigma = sigma
+        self.limit = limit
         
     
     def generate_transactions(self, transactions_count: int) -> list:
@@ -135,7 +139,8 @@ class LognormalGenerator:
         Keyword_arguments:
         transactions_count (int) -- required transactions count
         """
-        return np.random.lognormal(mean=self.mean, sigma=self.sigma, size=transactions_count)
+        value = np.random.lognormal(mean=self.mean, sigma=self.sigma, size=transactions_count)
+        return value / ((value // self.limit) + 1)
 
     
 
@@ -552,5 +557,6 @@ class LognormalParameterSearcher:
         ax.set_xlabel("scale")
         ax.set_ylabel("harmonic error")
         plt.show()
+
 
 
