@@ -86,11 +86,9 @@ def list_to_reserves_dictionary(daily_reserve: list) -> dict:
 
 def get_pool_v2_history(contract_id: str, range_limit: int=100) -> list:
     """get transaction history for given contract id
-
     Args:
         contract_id (str): hash-sum of required contract
         range_limit (int, optional): how many data fragments required (one fragment has 1000 records). Defaults to 100.
-
     Returns:
         list: list of transactions history, where each transaction is an inner array
     """
@@ -127,6 +125,7 @@ def get_pool_v2_history(contract_id: str, range_limit: int=100) -> list:
                 'amount1In\n'
                 'amount1Out\n'
                 'amountUSD\n'
+                'sender\n'
                 'to\n'
                 '}\n'
             '}\n')
@@ -134,7 +133,7 @@ def get_pool_v2_history(contract_id: str, range_limit: int=100) -> list:
             # get current response and extract from it last timestamp
             response = client.execute(query)
             last_timestamp = response['swaps'][-1]['transaction']['timestamp']
-
+            
             # extend swaps history with current response
             all_swaps.extend(response['swaps'])
 
@@ -146,10 +145,8 @@ def get_pool_v2_history(contract_id: str, range_limit: int=100) -> list:
 
 def list_to_transaction_dictionary(transaction: list) -> dict:
     """transform transaction data present in array form into dictionary
-
     Args:
         transaction (list): one transaction data in array format
-
     Returns:
         dict: dictionary of one transaction record data
     """
@@ -165,7 +162,10 @@ def list_to_transaction_dictionary(transaction: list) -> dict:
         amount_out = transaction['amount0Out']
         
     amount_usd = transaction['amountUSD']
+    sender = transaction['sender']
+    to = transaction['to']
     timestamp = transaction['transaction']['timestamp']
+    txd = transaction['transaction']['id']
     
     return {
         'token_in': token_in,
@@ -173,7 +173,10 @@ def list_to_transaction_dictionary(transaction: list) -> dict:
         'amount_in': amount_in,
         'amount_out': amount_out,
         'amount_usd': amount_usd,
-        'timestamp': timestamp
+        'timestamp': timestamp,
+        'sender': sender,
+        'to': to,
+        'txd': txd
     }
     
 
@@ -386,3 +389,10 @@ def pool_burns_to_df(burns_list: list) -> pd.DataFrame:
     all_burns_df['timestamp'] = pd.to_datetime(all_burns_df['timestamp'], unit='s')
     
     return all_burns_df
+
+
+def filter_swaps(all_swaps):
+    direct_swaps = list(filter(lambda x: ((x['amount0In'] != '0') ^ (x['amount1In'] !='0')) & ((x['amount0Out'] != '0') ^ (x['amount1Out'] != '0')) & (not ((x['amount0In'] == '0') & (x['amount0Out'] == '0')))  &  (not ((x['amount1In'] == '0') & (x['amount1Out'] == '0'))), all_swaps))
+    other_swaps = list(filter(lambda x: not (((x['amount0In'] != '0') ^ (x['amount1In'] !='0')) & ((x['amount0Out'] != '0') ^ (x['amount1Out'] != '0')) & (not ((x['amount0In'] == '0') & (x['amount0Out'] == '0')))  &  (not ((x['amount1In'] == '0') & (x['amount1Out'] == '0')))), all_swaps))
+    
+    return direct_swaps, other_swaps
