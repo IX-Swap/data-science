@@ -31,7 +31,7 @@ class VolatilityMitigator:
 
     def __mitigate(self, token_in: str, token_out: str, amount_in:int, amount_out:int, reserve_out:int, block_timestamp: int, transaction):
         # Which is the % of amount out relative to the remaining reserve of the token after the swap
-      #  slice_factor = 100 * amount_out / reserve_out if reserve_out > amount_out else 100
+        # slice_factor = 100 * amount_out / reserve_out if reserve_out > amount_out else 100
         slice_factor = 100 - 100 * (reserve_out - amount_out) // reserve_out if reserve_out > amount_out else 100
 
         oracle_amount_out = dsw_oracle.consult(token_in, amount_in, token_out, block_timestamp)

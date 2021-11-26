@@ -12,13 +12,14 @@ from big_numbers import contract_18_decimals_to_float, expand_to_18_decimals
 from safe_math import q_decode_144
 import settings
 
+# old main, required update (using main_historic_transactions.py)
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s:%(name)s:%(message)s', datefmt="%m/%d/%Y %I:%M:%S %p")
 logger = logging.getLogger(__name__)
 
-EXPERIMENT_ID = 37
-X_NAME = 'X'
-Y_NAME = 'Y'
+EXPERIMENT_ID = 38
+X_NAME = 'HKMT'
+Y_NAME = 'USDT'
 
 def main(): 
     occurences_per_min_list = [10]

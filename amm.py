@@ -2,10 +2,9 @@ import pandas as pd
 
 import logging
 from volatility_mitigation import VolatilityMitigator
-from transactions import SwapTransaction
+from transactions import BurnTransaction, MintTransaction, SwapTransaction
 import blockchain
 from settings import PRICE_TOLLERANCE_THRESHOLD
-import safe_math
 from big_numbers import expand_to_18_decimals
 from safe_math import q_div, q_encode
 import dsw_oracle
@@ -73,8 +72,6 @@ class AMM:
             
             self.price_X_cumulative_last += q_div(q_encode(self.reserve_Y), self.reserve_X) * time_elapsed
             self.price_Y_cumulative_last += q_div(q_encode(self.reserve_X), self.reserve_Y) * time_elapsed
-            #self.price_X_cumulative_last += time_elapsed * self.reserve_Y // self.reserve_X 
-            #self.price_Y_cumulative_last += time_elapsed * self.reserve_X // self.reserve_Y 
 
             self.block_timestamp_last = current_block_timestamp # TODO: ?
         
@@ -85,6 +82,19 @@ class AMM:
         swap_transaction = SwapTransaction(transaction, self, id)
         
         blockchain.receive_transaction(swap_transaction)
+
+    
+    def mint(self, amount_X, amount_Y, timestamp, id):
+        mint_transaction = MintTransaction(amount_X, amount_Y, timestamp, self, id)
+
+        blockchain.receive_transaction(mint_transaction)
+
+
+    def burn(self, amount_X, amount_Y, timestamp, id):
+        burn_transaction = BurnTransaction(amount_X, amount_Y, timestamp, self, id)
+
+        blockchain.receive_transaction(burn_transaction)
+
 
     def save_pool_state(self, before_swap: bool, transaction_id: int):
         if before_swap:
@@ -107,12 +117,11 @@ class AMM:
         after_df.to_csv(filename_after, index=False)
 
 
+
     def update_reserve_X(self, delta: int):
         if self.reserve_X + delta < 0:
             raise Exception(f"Cannot update reserve X, reserve_X = {self.reserve_X}, delta = {delta}")
 
-       # logger.error(f"Update reserve X {self.reserve_X}, delta={delta}")
-        #print("adding delta", delta)
         self.reserve_X += delta
         self.k_last = self.reserve_X * self.reserve_Y
 
@@ -134,12 +143,8 @@ class AMM:
         time_elapsed = block_timestamp - self.block_timestamp_last
 
         if time_elapsed > 0:
-           # print(self.reserve_X, self.reserve_Y, "...")
-
             self.price_X_cumulative_last += q_div(q_encode(self.reserve_Y), self.reserve_X) * time_elapsed
             self.price_Y_cumulative_last += q_div(q_encode(self.reserve_X), self.reserve_Y) * time_elapsed
-           # print(self.reserve_X, self.reserve_Y)
-           # print(self.reserve_X / self.reserve_Y)
 
         self.block_timestamp_last = block_timestamp # TODO: maybe remove blocktimestamplast assign in get method
 
@@ -165,3 +170,5 @@ reserve_Y = _amm.get_reserve_Y
 save_pool_state = _amm.save_pool_state
 export_pool_states_to_csv = _amm.export_pool_states_to_csv
 reset = _amm.reset
+mint = _amm.mint
+burn = _amm.burn

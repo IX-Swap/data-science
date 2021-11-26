@@ -3,7 +3,6 @@ import logging
 from typing import List
 import amm
 from settings import WINDOW_SIZE, GRANULARITY
-import safe_math
 from safe_math import q_decode_144
 
 logger = logging.getLogger(__name__)
@@ -24,11 +23,14 @@ class Observation:
 class DSWOracle:
     def __init__(self, window_size: int, granularity: int) -> None:
         self.window_size = window_size
+        self.fallback_window_size = window_size * 2
         self.granularity = granularity
         self.period_size = window_size // granularity
         self.observations:List[Observation] = []
 
         assert window_size % granularity == 0, "ERROR: WINDOW_SIZE not divisible by GRANULARITY"
+
+        print(window_size, granularity, self.period_size)
 
     def reset(self, window_size, period_size, granularity):
         self.window_size = window_size
@@ -36,9 +38,14 @@ class DSWOracle:
         self.granularity = granularity
         self.observations = []
 
+        assert window_size % granularity == 0, "ERROR: WINDOW_SIZE not divisible by GRANULARITY"
+        assert window_size // granularity == period_size, "ERROR: GRANULARITY, PERIOD_SIZE MISMATCH"
+
+        print(self.window_size, self.period_size, self.granularity)
+
 
     def observation_index_of(self, timestamp: int):
-        epoch_period = timestamp // self.period_size #?
+        epoch_period = timestamp // self.period_size #
 
         return epoch_period % self.granularity
 
@@ -59,8 +66,39 @@ class DSWOracle:
             observation.price_X_cumulative = price_X_cumulative
             observation.price_Y_cumulative = price_Y_cumulative
 
-            logger.error(f"Inside update, time_elapsed={time_elapsed}, updated observation: {observation}")
+            logger.info(f"Inside update, time_elapsed={time_elapsed}, updated observation: {observation}")
 
+
+    def get_fallback_observation_offset_index(self, block_timestamp):
+        reference_timestamp = block_timestamp
+        boundary_timestamp = block_timestamp - self.fallback_window_size
+
+        offset_index = 0
+
+        for i in range(len(self.observations)):
+            reference_timestamp = block_timestamp
+            boundary_timestamp = block_timestamp - self.fallback_window_size
+
+            for i in range(0, len(self.observations)):
+                timestamp = self.observations[i].timestamp
+
+                if timestamp >= boundary_timestamp and timestamp <= reference_timestamp:
+                    reference_timestamp = timestamp
+                    offset_index = i+1
+
+        return offset_index
+
+    def get_fallback_observation(self, block_timestamp):
+        offset_index = self.get_fallback_observation_offset_index(block_timestamp)
+
+        assert offset_index > 0, 'Invalid offset'
+
+        fallback_observation = self.observations[offset_index - 1]
+
+        return fallback_observation
+
+    def has_fallback_observation(self, block_timestamp):
+        return self.get_fallback_observation_offset_index(block_timestamp) > 0
 
     
     def get_first_observation_in_window(self, block_timestamp: int) -> Observation:
@@ -68,8 +106,8 @@ class DSWOracle:
 
         observation_index = self.observation_index_of(block_timestamp)
         first_observation_index = (observation_index + 1) % self.granularity
-        #  print(first_observation_index, len(self.observations))
         first_observation = self.observations[first_observation_index]
+
 
         logger.debug(f"First observation: {first_observation}")
 
@@ -79,10 +117,6 @@ class DSWOracle:
     def compute_amount_out(self, price_comulative_start: int, price_comulative_end: int, time_elapsed: int, amount_in: int):
         price_average = (price_comulative_end - price_comulative_start) // time_elapsed
         amount_out = q_decode_144(price_average * amount_in)
-
-      #  print(price_average)
-      #  print(time_elapsed)
-    #    print((price_comulative_end - price_comulative_start))
 
         return amount_out
 
@@ -94,14 +128,29 @@ class DSWOracle:
         first_observation = self.get_first_observation_in_window(block_timestamp)
 
         time_elapsed = block_timestamp - first_observation.timestamp
+        logger.info(f'{time_elapsed}, {self.window_size}, {block_timestamp}, {first_observation.timestamp}')
 
-        return time_elapsed <= self.window_size
+        return time_elapsed <= self.window_size or self.has_fallback_observation(block_timestamp)
+
 
 
     def consult(self, token_in: str, amount_in: int, token_out: str, block_timestamp: int):
         first_observation = self.get_first_observation_in_window(block_timestamp)
 
+        _window_size = self.window_size 
+        first_observation = self.get_first_observation_in_window(block_timestamp)
         time_elapsed = block_timestamp - first_observation.timestamp
+
+        if time_elapsed > _window_size:
+            first_observation = self.get_fallback_observation(block_timestamp)
+            time_elapsed = block_timestamp - first_observation.timestamp
+            _window_size = self.fallback_window_size
+
+
+        # should never happen, assert
+        assert time_elapsed <= _window_size, 'SlidingWindowOracle: MISSING_HISTORICAL_OBSERVATION, can`t consult'
+        assert time_elapsed >= _window_size - self.period_size * 2 or _window_size == self.fallback_window_size, 'Unexpected TIME_ELAPSED'
+
         price_X_cumulative, price_Y_cumulative = amm.current_cumulative_prices(block_timestamp)
 
         if amm.X() == token_in:

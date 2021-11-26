@@ -44,5 +44,11 @@ nodeLanguageServer.*/**
 dist/**
 *.csv
 notebooks
-monte_carlo2.py
 data/
+
+test.py
+main_5.py
+main_2.py
+main_3.py
+main_4.py
+main2.py

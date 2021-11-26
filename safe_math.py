@@ -1,3 +1,5 @@
+# todo: move all methods to big_numbers.py
+
 
 def div(x: int, y: int):
     return x // y
@@ -11,10 +13,12 @@ def sqrt(y: int):
         while x < z:
             z = x
             x = (y // x + x) // 2
+
+        return z
     elif y != 0:
         z = 1
 
-    return z
+        return z
 
 # a library for handling binary fixed point numbers (https://en.wikipedia.org/wiki/Q_(number_format))
 def q_encode(x: int):
