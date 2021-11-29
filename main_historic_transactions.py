@@ -15,15 +15,14 @@ from tqdm import tqdm
 
 # RUNS SIMULATION FOR POOL WITH AND WITHOUT VOLATILITY MITIGATOR
 
-
 logging.basicConfig(level=logging.WARN, format='%(asctime)s:%(name)s:%(message)s', datefmt="%m/%d/%Y %I:%M:%S %p")
 logger = logging.getLogger(__name__)
 
-EXPERIMENT_ID = 50
-X_NAME = 'WBTC'
-Y_NAME = 'DAI'
-X_INDEX = '0'
-Y_INDEX = '1'
+EXPERIMENT_ID = 57
+X_NAME = 'WETH'
+Y_NAME = 'USDC'
+X_INDEX = '1'
+Y_INDEX = '0'
 
 def main(): 
     swaps_path = f'data/pair_history/{X_NAME}_{Y_NAME}/{X_NAME.lower()}_{Y_NAME.lower()}_swaps.pkl'
@@ -51,7 +50,7 @@ def main():
     with open(f'{base_experiment_path}/config.txt', 'w') as f:
         f.write(base_experiment_path)
 
-    iteration = 0
+    iteration = 1
     window_size = 24
     granularity = 24
 

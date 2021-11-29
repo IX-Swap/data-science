@@ -17,6 +17,7 @@ class TransactionStatus(Enum):
     NOT_ENOUGH_RESERVES = 3
     EXCEEDED_MAX_SLIPPAGE = 4
     K_ERROR = 5
+    CLIPPED = 6 # if cannot burn entire amount
 
 
 class TransactionType(Enum):
@@ -201,9 +202,17 @@ class BurnTransaction(Transaction):
 
     def try_execute(self, block_timestamp, block_number):
         if self.amm.reserve_X < self.X_amount or self.amm.reserve_Y < self.Y_amount:
-            self.X_amount = min(self.amm.reserve_X - 1000000, self.X_amount)
-            self.Y_amount = min(self.amm.reserve_Y - 1000000, self.Y_amount)
-            #return TransactionStatus.NOT_ENOUGH_RESERVES
+            MIN_LIQUIDITY = 1000000
+            self.X_amount = min(self.amm.reserve_X - MIN_LIQUIDITY, self.X_amount)
+            self.Y_amount = min(self.amm.reserve_Y - MIN_LIQUIDITY, self.Y_amount)
+            
+            self.amm.update_reserve_X(-self.X_amount)
+            self.amm.update_reserve_Y(-self.Y_amount)
+
+            self.block_timestamp = block_timestamp
+            self.block_number = block_number
+
+            return TransactionStatus.CLIPPED
 
         self.amm.update_reserve_X(-self.X_amount)
         self.amm.update_reserve_Y(-self.Y_amount)
