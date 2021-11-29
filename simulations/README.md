@@ -16,7 +16,7 @@ Each pool has a dedicated folder containing
 1. Simulation result analysis (with/without volatility mitigation mechanism enabled)
 2. Simulation result analysis, after modification in amm (see AMM modifications section)
 3. Grid run analysis (not added yet, requires refactoring for readability)
-4. Individual analysis of *simulations generated during grid run*
+4. Individual analysis of simulations generated during *grid run*
 
 *Not all of the simulations from the grid run are being analyzed individually, but only the ones which manifest an interesting or strange pattern during the overall grid run analysis*
 
@@ -36,5 +36,5 @@ The suffix at the end of the simulation notebook indicates the amm version used 
 - **_PT#** - simulation run with PRICE_TOLLERANCE_TRESHOLD distinct from default (=98) (e.g.: WBTC_DAI_PT_97.ipynb - price threshold used = 97)
 - **_G#** - granularity
 
-Note: the suffixes can be combined, to indicate the modification of more than one parameter (e.g.: WBTC_DAY_W12_PT97_G12.ipynb - simulation run with params: window size = 12, price tollerance threshold = 97, granularity = 12)
+Note: the suffixes can be combined, to indicate the modification of more than one parameter (e.g.: WBTC_DAI_W12_PT97_G12.ipynb - simulation run with params: window size = 12, price tollerance threshold = 97, granularity = 12)
 
