@@ -11,6 +11,16 @@ a grid_run for distinct parameters has been performed, in order to visualize the
 - ETH/USDC (high capitalization pool)
 - ... and a lot more to be added after refactoring
 
+## Structure
+Each pool has a dedicated folder containing
+1. Simulation result analysis (with/without volatility mitigation mechanism enabled)
+2. Simulation result analysis, after modification in amm (see AMM modifications section)
+3. Grid run analysis (not added yet, requires refactoring for readability)
+4. Individual analysis of *simulations generated during grid run*
+
+*Not all of the simulations from the grid run are being analyzed individually, but only the ones which manifest an interesting or strange pattern during the overall grid run analysis*
+
+
 ## Prefix (E#)
 The notebooks with simulations are prefixed with the letter E (experiment) followed by a number (identifier), which indicates the id of experiment (During one experiment several simulations can be conducted (e.g.: with/without volatility mitigation mechanism enabled, distinct dsw oracle params...) and generally this number represents the chronological order of the conducted simulation.
 E.g.: E41_WBTC_DAI.ipynb
@@ -28,11 +38,3 @@ The suffix at the end of the simulation notebook indicates the amm version used 
 
 Note: the suffixes can be combined, to indicate the modification of more than one parameter (e.g.: WBTC_DAY_W12_PT97_G12.ipynb - simulation run with params: window size = 12, price tollerance threshold = 97, granularity = 12)
 
-## Structure
-Each pool has a dedicated folder containing
-1. Simulation result analysis
-2. Simulation result analysis, after modification in amm (see previous section)
-3. Grid run analysis (not added yet, requires refactoring for readability)
-4. Individual analysis of *simulations generated during grid run*
-
-*Not all of the simulations from the grid run are being analyzed individually, but only the ones which manifest an interesting or strange pattern during the overall grid run analysis*
