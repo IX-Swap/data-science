@@ -32,7 +32,7 @@ Note: the suffixes can be combined, to indicate the modification of more than on
 Each pool has a dedicated folder containing
 1. Simulation result analysis
 2. Simulation result analysis, after modification in amm (see previous section)
-3. Grid run analysis (not added yet, required refactoring for readability)
-4. Individual analysis of *simulationss generated during grid run
+3. Grid run analysis (not added yet, requires refactoring for readability)
+4. Individual analysis of *simulations generated during grid run*
 
-*Not all of the simulations from the grid run are being analyzed individually, but only the ones which manifest an interesting or strange pattern during the overall grid run analysis
+*Not all of the simulations from the grid run are being analyzed individually, but only the ones which manifest an interesting or strange pattern during the overall grid run analysis*
