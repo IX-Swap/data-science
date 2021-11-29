@@ -25,9 +25,9 @@ X_INDEX = '0'
 Y_INDEX = '1'
 
 def main(): 
-    swaps_path = f'data/pair_history/{X_NAME}_{Y_NAME}/{X_NAME.lower()}_{Y_NAME.lower()}_swaps.pkl'
-    mints_path = f'data/pair_history/{X_NAME}_{Y_NAME}/{X_NAME.lower()}_{Y_NAME.lower()}_mints.pkl'
-    burns_path = f'data/pair_history/{X_NAME}_{Y_NAME}/{X_NAME.lower()}_{Y_NAME.lower()}_burns.pkl'
+    swaps_path = f'../data/pair_history/{X_NAME}_{Y_NAME}/{X_NAME.lower()}_{Y_NAME.lower()}_swaps.pkl'
+    mints_path = f'../data/pair_history/{X_NAME}_{Y_NAME}/{X_NAME.lower()}_{Y_NAME.lower()}_mints.pkl'
+    burns_path = f'../data/pair_history/{X_NAME}_{Y_NAME}/{X_NAME.lower()}_{Y_NAME.lower()}_burns.pkl'
 
     swaps_df = pd.read_pickle(swaps_path)
     mints_df = pd.read_pickle(mints_path)
@@ -44,7 +44,7 @@ def main():
 
     transactions_df.sort_values('timestamp', inplace=True)
 
-    base_experiment_path = f'data/real_transactions_grid/experiment_{EXPERIMENT_ID}'
+    base_experiment_path = f'../data/real_transactions_grid/experiment_{EXPERIMENT_ID}'
     os.makedirs(base_experiment_path)
 
 
