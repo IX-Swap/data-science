@@ -21,12 +21,13 @@ Each pool has a dedicated folder containing
 *Not all of the simulations from the grid run are being analyzed individually, but only the ones which manifest an interesting or strange pattern during the overall grid run analysis*
 
 
-## Prefix (E#)
+## Naming Conventions
+### Prefix (E#)
 The notebooks with simulations are prefixed with the letter E (experiment) followed by a number (identifier), which indicates the id of experiment (During one experiment several simulations can be conducted (e.g.: with/without volatility mitigation mechanism enabled, distinct dsw oracle params...) and generally this number represents the chronological order of the conducted simulation.
 E.g.: E41_WBTC_DAI.ipynb
 
 
-## AMM modifications (_mod#)
+### AMM modifications (_mod#), different parameters
 By the name of the simulation notebook, the amm set up used for conductiong the experiment can be determined.
 The suffix at the end of the simulation notebook indicates the amm version used for processing the transactions or information about AMM-based parameters.
 - **no suffix** (default amm set up, default params) (e.g.: WBTC_DAI.ipynb)
