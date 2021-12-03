@@ -38,7 +38,7 @@ Current project part contains realization of the traders activity simulations us
   * ```get_pool_v2_history``` extracts swap-transactions history from Uniswap V2. ```list_to_transaction_dictionary``` transforms swap-transaction data from list into dictionary, ```pool_history_to_df``` performs swap-transaction history from list of lists form into Pandas DataFrame;
   * ```get_pool_v2_mints``` and ```get_pool_v2_burns``` extract list of burns and mints histories in lists form, ```list_to_mints_dictionary``` changes each burn or mint record from list to the dictionary form, ```pool_mints_to_df``` and ```pool_burns_to_df``` transform burns or mints histories for lists of lists into Pandas DataFrames;
   * ```filter_swaps``` extract direct swaps and other ones (like “flash” ones), separating them.
-* ```dima_trubca_v2_plots.py``` - file containing plots functions written in cooperation with Dmitri Trubca:
+* ```uniswap_v2_plots.py``` - file containing plots functions:
   * ```show_swaps_count_moving_averages``` - show moving daily average and one week rolling average line plots for swaps operations count;
   * ```show_swaps_reserves_evolution_through_time``` - show reserves changes line plots through time for specified pool;
   * ```show_pool_price_evolution_from_reserves``` - show reserve-based token prices line plots through time;
@@ -58,7 +58,7 @@ Other packages mostly contain Jupyter Notebooks dedicated to collecting, reviewi
 * ```web_scrapper``` package contains all files related to collecting the data of insiders trades for shares. ```chromedriver.exe``` is a web-driver required for collecting the data from the Yahoo Finance web-page containing insiders trades history using Selenium framework. ```web_scrapper.py``` contains code required for scrapping the data out of the web-page. ```web_shares_scraping``` Jupyter Notebook contains scripts collecting the data;
 * ```shares_insiders_history``` is a package containing the data about insiders trades and Jupyter Notebook ```fast_shares_analysis``` with small analysis of the Yahoo Finance insiders shares trades;
 * ```pools_history``` contains first drafts of the Monte-Carlo simulations and their prototypes, scripts for collecting Uniswap V3 pools data and their analysis;
-* ```uniswap_v2_pools_analysis``` package contains ```dima_trubca_USDC-ETH_v2``` Jupyter Notebook that contains Dmitri Trubca’s work for collecting and analysing the data from Uniswap V2, basing on which was performed next collection and analysis of the data, ```v2_pools_analysis``` contains first Uniswap V2 pools extractions with examples of fitting Monte-Carlo simulations to be close to the real Uniswap V2 histories
+* ```uniswap_v2_pools_analysis``` package contains ```uniswap_USDC-ETH_v2``` Jupyter Notebook that contains work for collecting and analysing the data from Uniswap V2, basing on which was performed next collection and analysis of the data, ```v2_pools_analysis``` contains first Uniswap V2 pools extractions with examples of fitting Monte-Carlo simulations to be close to the real Uniswap V2 histories
 * ```real_v2_pools_stories``` package contains all performed Uniswap V2 pools history analysis with different versions of the history extraction. For analysis, different token pairs containing altcoins, stablecoins, NFTs, STOs, meme-tokens.
 
 The next part covers more detailed code description, its most important moments and general aspects of work.
@@ -204,6 +204,7 @@ All presented above distributions can be used for simulating transaction values,
 ![Cauchy Lognormal real distributions](./distributions_images/lognnormal_cauchy_real_distributions.PNG)
 
 From the left to the right are lognormal distribution, Cauchy distribution and real transaction values distribution. Considering that those distributions are able to match real life distributions it is required to write an algorithm able to automatically pick best parameters for specified distributions.
+
 ### Parameter search algorithms
 	
 Considering that the best distributions are log-normal and Cauchy ones it was decided to write parameter picking algorithms that will be able to find the best parameters combination.
