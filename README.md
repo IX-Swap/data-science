@@ -126,7 +126,7 @@ where *x_m* is a minimal possible value of *X* (also called as ```scale``` param
 
 Cauchy distribution is a probability distribution of the x-intercept of a ray issuing from (x0, ) with a uniformly distributed angle. Formula:
 
-![Cauchy distribution formula](./formulas_images/cauchy_distribution_formula.PNG)
+![Cauchy distribution formula](./formulas_images/cauchy_distribution_formula.png)
 
 where *x0* is locational parameter setting location of the distribution peak and *mu* is the scale parameter which specifies the half-width and half-maximum.
 
@@ -134,11 +134,11 @@ where *x0* is locational parameter setting location of the distribution peak and
 
 There is still one problem remaining about Cauchy - it is able to give unrealistically big transaction values, meaning that there is a small chance that there will appear anomalous value which is not corresponding to the real world case. This problem was solved via “mapping” values mechanism, graphical representation of which can be understood from given example:
 
-![Cauchy distribution mapping](./distributions_images/cauchy_distribution_mapping.PNG)
+![Cauchy distribution mapping](./distributions_images/cauchy_distribution_mapping.png)
 
 “Mapping” formula:
 
-![Cauchy mapping formula](./formulas_images/cauchy_distribution_formula.PNG)
+![Cauchy mapping formula](./formulas_images/cauchy_distribution_formula.png)
 
 where the *generated value* is representing the original Cauchy generated value, the *limit* demonstrates the upper bound of the possible values. Such an algorithm allows keeping the original Cauchy distribution almost unchanged (without breaking the probabilities) and producing values only of specific limit.
 
@@ -212,11 +212,11 @@ The first problem that requires solution - how algorithm will pick the best poss
 
 Harmonic mean formula:
 
-![Harmonic mean formula](./formulas_images/harmonic_mean.PNG)
+![Harmonic mean formula](./formulas_images/harmonic_mean.png)
 
 is working for two parameters. It means a harmonic two-error formula can be used to define the best possible parameters combination. Conform reviewed during the project distributions the first half of values present in distributions are the most important ones and there can be compared first quartiles and medians of two distributions, where the first distribution is a real one and the second one - simulated one. So the final representation of finding harmonic mean error is:
 
-![Harmonic mean error formula](./formulas_images/harmonic_mean_error.PNG)
+![Harmonic mean error formula](./formulas_images/harmonic_mean_error.png)
 
 and the model will pick as best parameters such ones, where average harmonic mean error for all launches of the simulation will be minimal.
 
