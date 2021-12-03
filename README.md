@@ -6,6 +6,8 @@
 
 Current repository contains two parts: traders activity simulation models with transaction histories and AMM market simulation. Current readme will cover general description of both parts in detail, referring to the inner project structure, code fragments and explaining some solutions closely. Each project part has its own branch and each branch will have a local readme file only about the part where it is inserted.
 
+Current project contains Uniswap V2 pools transaction histories analysis shown in the PDF document ```IXS_pools_analysis_v1.pdf```. This readme explains implementation of the simulations and used/created algorithms conform next structure:
+
 * [Traders activity simulations and structure](#traders-activity-simulations-and-structure):
   * [General description of the project structure](#general-description-of-the-project-structure)
   * [Monte Carlo simulations](#monte-carlo-simulations):
