@@ -1,5 +1,7 @@
-# AMM prototype and simulations
-Branch containing the code for AMM prototype the detailed information about conducted simulations
+# Synthetic AMM codebase and Market Simulations
+
+Branch containing the codebase for a synthetic AMM prototype and detailed information about performed Market simulations
+
 ## Components
-- <a href="src">/src</a> - AMM prototype code in Python
-- <a href="simulations">/simulations</a> - Simulations
+- <a href="src">/src</a> - Synthetic AMM prototype codebase written in Python
+- <a href="simulations">/simulations</a> - Performed simulations
