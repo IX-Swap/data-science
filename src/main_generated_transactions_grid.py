@@ -23,11 +23,9 @@ Y_NAME = 'USDT'
 
 def main(): 
     occurences_per_min_list = [10]
-    initial_reserves_usd_list = [100000000]
-   # initial_reserves_usd_list = [1000, 10000, 100000]
+    initial_reserves_usd_list = [1000, 10000, 100000]
     ratios_sec_usd_list = [1]
-    cauchy_scale_list = [15000]
-    #cauchy_scale_list = [5000, 10000, 15000]
+    cauchy_scale_list = [5000, 10000, 15000]
     volatility_mitigator_list = [False, True]
     price_tollerance_threshold_list = [98]
     window_size_list = [24]

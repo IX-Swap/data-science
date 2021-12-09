@@ -82,7 +82,7 @@ class DSWOracle:
             for i in range(0, len(self.observations)):
                 timestamp = self.observations[i].timestamp
 
-                if timestamp >= boundary_timestamp and timestamp <= reference_timestamp:
+                if timestamp >= boundary_timestamp and timestamp < reference_timestamp:
                     reference_timestamp = timestamp
                     offset_index = i+1
 

@@ -184,7 +184,7 @@ class Transaction:
     def __init__(self, timestamp: datetime, 
                 token_in_amount: float, token_in: str, 
                 token_out: str, 
-                slope: int=5, txd:str=None):
+                slope: int=5, txd:str=None, sender=None, to=None):
         self.datetime_timestamp = timestamp
         self.token_in = token_in
         self.token_in_amount = token_in_amount
@@ -192,6 +192,8 @@ class Transaction:
         self.token_out_amount = None
         self.slope = slope
         self.txd = txd
+        self.sender = sender
+        self.to = to
 
 
     def set_token_out_amount(self, token_out_amount: float):

@@ -13,16 +13,17 @@ from transactions import BurnTransaction, MintTransaction, SwapTransaction
 from monte_carlo2 import Transaction 
 from tqdm import tqdm
 
-# RUNS SIMULATION FOR POOL WITH AND WITHOUT VOLATILITY MITIGATOR
 
 logging.basicConfig(level=logging.WARN, format='%(asctime)s:%(name)s:%(message)s', datefmt="%m/%d/%Y %I:%M:%S %p")
 logger = logging.getLogger(__name__)
 
-EXPERIMENT_ID = 57
-X_NAME = 'WETH'
-Y_NAME = 'USDC'
-X_INDEX = '1'
-Y_INDEX = '0'
+# RUNS SIMULATIONS FOR POOL X_Y BASED ON HISTORICAL TRANSACTIONS WITH VOLATILITY MITIGATION MECHANISM ENABLED / DISABLED
+
+EXPERIMENT_ID = 84
+X_NAME = 'MAMZN'
+Y_NAME = 'UST'
+X_INDEX = '0'
+Y_INDEX = '1'
 
 def main(): 
     swaps_path = f'../data/pair_history/{X_NAME}_{Y_NAME}/{X_NAME.lower()}_{Y_NAME.lower()}_swaps.pkl'
@@ -39,6 +40,9 @@ def main():
 
     burns_df = burns_df[~burns_df.isnull().any(axis=1)] # todo: print number of missing
 
+    #mints_df = mints_df.iloc[:29]
+    #burns_df = burns_df.iloc[:6]
+
     swaps_df, mints_df, burns_df = expand_all_transactions_history(swaps_df, mints_df, burns_df)
     transactions_df = pd.concat([swaps_df, mints_df, burns_df])
 
@@ -49,8 +53,9 @@ def main():
     
     with open(f'{base_experiment_path}/config.txt', 'w') as f:
         f.write(base_experiment_path)
+        
 
-    iteration = 1
+    iteration = 0
     window_size = 24
     granularity = 24
 
@@ -67,7 +72,7 @@ def main():
             blockchain.update(row['timestamp'].second)
 
             if row['type'] == 'SWAP':
-                amm.swap(cnt, Transaction(row['timestamp'], int(row['amount_in']), row['token_in'], row['token_out'], 100, row['txd']))
+                amm.swap(cnt, Transaction(row['timestamp'], int(row['amount_in']), row['token_in'], row['token_out'], 100, row['txd'], row['sender'], row['to']))
             elif row['type'] == 'MINT':
                 amm.mint(int(row[f'amount{X_INDEX}']), int(row[f'amount{Y_INDEX}']), row['timestamp'], cnt)
             elif row['type'] == 'BURN':

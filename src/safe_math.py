@@ -20,6 +20,8 @@ def sqrt(y: int):
 
         return z
 
+    return 0
+
 # a library for handling binary fixed point numbers (https://en.wikipedia.org/wiki/Q_(number_format))
 def q_encode(x: int):
     z = x << 112

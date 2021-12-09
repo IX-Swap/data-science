@@ -49,6 +49,8 @@ class SwapTransaction(Transaction):
         self.token_in_amount = transaction.token_in_amount
         self.token_out_amount = transaction.token_out_amount
         self.txd = transaction.txd
+        self.sender = transaction.sender
+        self.to = transaction.to
 
         (reserve_in, reserve_out) = self.get_reserves()
         self.amount_out_min = self.get_amount_out(self.token_in_amount, reserve_in, reserve_out) * (100 - transaction.slope) // 100
@@ -164,10 +166,10 @@ class SwapTransaction(Transaction):
 
     @staticmethod
     def to_list_header():
-        return ['id', 'token_in', 'token_out', 'token_in_amount', 'token_out_amount_min', 'token_out_amount' , 'system_fee', 'mitigator_check_status', 'oracle_amount_out', 'out_amount_diff', 'slice_factor', 'slice_factor_curve', 'status', 'block_number', 'block_timestamp', 'transaction_timestamp', 'txd']
+        return ['id', 'token_in', 'token_out', 'token_in_amount', 'token_out_amount_min', 'token_out_amount' , 'system_fee', 'mitigator_check_status', 'oracle_amount_out', 'out_amount_diff', 'slice_factor', 'slice_factor_curve', 'status', 'block_number', 'block_timestamp', 'transaction_timestamp', 'txd', 'sender', 'to']
 
     def to_list(self):
-        return [self.id, self.token_in, self.token_out, self.token_in_amount, self.amount_out_min, self.token_out_amount, self.system_fee, self.mitigator_check_status.name, self.oracle_amount_out, self.out_amounts_diff, self.slice_factor, self.slice_factor_curve, self.status.name, self.block_number, self.block_timestamp, self.timestamp, self.txd]
+        return [self.id, self.token_in, self.token_out, self.token_in_amount, self.amount_out_min, self.token_out_amount, self.system_fee, self.mitigator_check_status.name, self.oracle_amount_out, self.out_amounts_diff, self.slice_factor, self.slice_factor_curve, self.status.name, self.block_number, self.block_timestamp, self.timestamp, self.txd, self.sender, self.to]
 
     @staticmethod
     def save_all(filename):
