@@ -98,15 +98,15 @@ Normal distribution is also a normal probability distribution for a real-valued 
 
 where *mu* is the mean or expectation of the distribution, *sigma* is the standard deviation, *e* is Euler’s constant. Probability density function of this distribution is also noted as *ф(x)*. Normal distribution looks like chart presented below:
 
-![Normal distribution chart](./distributions_images/normal_distribution.PNG)
+![Normal distribution chart](./distributions_images/normal_distribution.png)
 
 The only problem of this distribution is that there is a possibility of producing negative values that should not be present in the transaction values. The only way to evade negative values production is use of the truncated normal distribution conform next formula:
 
-![Truncated Normal distribution formula](./formulas_images/truncated_normal_distribution.PNG)
+![Truncated Normal distribution formula](./formulas_images/truncated_normal_distribution.png)
 
 In this formula *ф(x)* represents a probability density function of the "parent" general normal distribution with mean, variance, truncation interval represented by *a* and *b*. There is one more symbol requiring explanation - the *Ф* one. Imagine a situation where is needed to determine the probability that a distribution will generate a value less than a specified value of *x*. The calculation of this probability will be according to the following function:
 
-![Cumulative Normal distribution formula](./formulas_images/cumulative_normal_distribution.PNG)
+![Cumulative Normal distribution formula](./formulas_images/cumulative_normal_distribution.png)
 
 ```Scipy.stats``` module contains a function called ```truncnorm``` dedicated to generating truncated normal distribution conform specified values interval. This function works with ```mu``` parameter representing mean distribution value, ```sigma``` representing standard deviation of the distribution, ```lower bound``` and ```upper bound``` representing values interval. Values are generated with next call:
 
@@ -122,7 +122,7 @@ Log normal distribution is the probability distribution of a random variable who
 
 where *Z* is a standard normal variable, *mu* represents distribution mean and *sigma* - standard deviation. Considering that traders' activity has extreme rises and drops it is required to consider such a case, which is covered by this type of distribution.
 
-![Lognormal distribution chart with different parameters](./distributions_images/log_normal_distribution_with_different_parameters.PNG)
+![Lognormal distribution chart with different parameters](./distributions_images/log_normal_distribution_with_different_parameters.png)
 
 ```numpy.random``` module contains ```lognormal``` function used for generating values conforming to Log-Normal probability distribution working by a similar principle as previous methods of sigma and mu parameters.
 
@@ -134,7 +134,7 @@ Pareto distribution is the power-law probability distribution that is used in de
 
 where *x_m* is a minimal possible value of *X* (also called as ```scale``` parameter) and shape parameter *a*.
 
-![Pareto distribution](./distributions_images/pareto_distribution.PNG)
+![Pareto distribution](./distributions_images/pareto_distribution.png)
 
 ```numpy.random``` module has a function called ```pareto``` that is responsible for generating the Pareto distribution.
 
@@ -229,11 +229,11 @@ The first problem that requires solution - how algorithm will pick the best poss
 
 Harmonic mean formula:
 
-![Harmonic mean formula](./formulas_images/harmonic_mean.PNG)
+![Harmonic mean formula](./formulas_images/harmonic_mean.png)
 
 is working for two parameters. It means a harmonic two-error formula can be used to define the best possible parameters combination. Conform reviewed during the project distributions the first half of values present in distributions are the most important ones and there can be compared first quartiles and medians of two distributions, where the first distribution is a real one and the second one - simulated one. So the final representation of finding harmonic mean error is:
 
-![Harmonic mean error formula](./formulas_images/harmonic_mean_error.PNG)
+![Harmonic mean error formula](./formulas_images/harmonic_mean_error.png)
 
 and the model will pick as best parameters such ones, where average harmonic mean error for all launches of the simulation will be minimal.
 
@@ -274,17 +274,17 @@ For each pool there were extracted 4 types (if available) of pool-related data:
 AMM constructs token price considering available reserves keeping the original token balance formula *token_a_balance * token_b_balance = k,*
 meaning that for each swap AMM generates ```token_out_value``` based on ```token_in_amount``` and current *token in to token out* price. To find out token price defined for each swap was applied the formula:
 
-![Token price formula](./formulas_images/token_price.JPG)
+![Token price formula](./formulas_images/token_price.jpg)
 
 This formula defines the ```token_in``` price expressed in ```token_out``` equivalent. Knowing current token prices can be found price change rate conform formula:
 
-![Token price change rate formula](./formulas_images/price_change_rate.JPG)
+![Token price change rate formula](./formulas_images/price_change_rate.jpg)
 
 Using detected *price* and *price change rate* can be performed influential analysis of the swaps, detecting extreme market changes caused by unique conditions or fraud activity. Reserve-based token prices may not cover those unique conditions and frauds, but can be used for comparing pool token prices with prices on external markets to check if pool tokens prices are correlating with external ones. 
 
 Uniswap V2 introduced some improvements compared to the V1 for setting manipulation-resistant environments. For example, one of the introduced protection layers is a time-weighted average price (TWAP) mechanism that works by formula with a 24 hour window:
 
-![Token price change rate formula](./formulas_images/twap.JPG)
+![Token price change rate formula](./formulas_images/twap.jpg)
 
 With a low transaction frequency there will be not enough estimated prices for finding time weighted one and there will be no price protection against performing specific attacks that will be further demonstrated. Taking this into account it was required to consider pool activity while checking anomalies and strange distributions with check of the token price change rates.
 
@@ -294,23 +294,23 @@ For performing data analysis were drawn linecharts, histograms, moving averages,
 
 **Miner extractable value** (MEV) is a miner profit that happens due to the ability to include/exclude/reorder transactions within the block that they produce. Current attack principle is that an attacker places a transaction right before another trader’s transaction, causing loss by this trader and placing the second transaction after another trader’s one to extract a profit from another trader’s loss. This happens due to the negative price change caused by the attacker's transaction and the next positive price change caused by another trader’s transaction.
 
-![MEV attack scheme](./schemes/mev_attack.JPG)
+![MEV attack scheme](./schemes/mev_attack.jpg)
 
 During multiple token pairs analysis multiple cases of MEV attacks were discovered. This attack appears in a pool with starting pool activity rise after pool activity drop, meaning that there is no applied TWAP regulation at the moment. 
 
 There is another limitation for performing an efficient MEV attack - an attacker is needed to perform a transaction with a high amount of tokens, meaning that attacker needs to have high financial power related to pool reserves. Therefore, with higher pool reserves, attackers must have higher financial power. To understand how this principle works it is required to demonstrate two cases of the two transactions for different reserves sizes.
 
-![AMM price change rates with bigger reserves](./formulas_images/amm_price_with_bigger_reserves.JPG)
+![AMM price change rates with bigger reserves](./formulas_images/amm_price_with_bigger_reserves.jpg)
 
 Imagine that Bob is a simple user that tries to change 100 token B to get some token A. It means that after performing swap pool will get 100 token B from Bob and give to Bob 100 token A. Imagine that in the first case there are only 1000 units of each token and in the second one there are 1000000 units of each token. In the first case, price changes by around 19%, meaning that even a relatively small transaction is able to greatly change tokens prices relative to each other. In the second case price is changed by 0.02% meaning that token price will greatly change only with much higher transaction values.
 
 Now imagine Alice, who is trying to extract some profit from market manipulations using the MEV principle. Alice sees that there are low pool reserves in the first case and she performs a transaction by exchanging 300 token B to get token A. It means that price will greatly change:
 
-![AMM price bigger transaction smaller reserves](./formulas_images/amm_price_bigger_transaction_smaller_reserves.JPG)
+![AMM price bigger transaction smaller reserves](./formulas_images/amm_price_bigger_transaction_smaller_reserves.jpg)
 
 In the first case, token A is now priced as around 0.5385 of token B, meaning that token A price was changed by around 46.15%. Then Alice tries to perform an attack over the second pool and to perform a successful attack she tries to change 30000 token B to get token A.
 
-![AMM price bigger transaction bigger reserves](./formulas_images/amm_price_bigger_transaction_bigger_reserves.JPG)
+![AMM price bigger transaction bigger reserves](./formulas_images/amm_price_bigger_transaction_bigger_reserves.jpg)
 
 In the presented case even with a 100 times bigger transaction Alice was not successful to perform an efficient MEV attack, considering that her attack has changed price only by around 5.83%. This case demonstrates how important pool reserves are and how important it is to have big reserves to make pools more sustainable. Successful MEV attack in case of higher pool reserves requires much bigger financial power of the attacker.
 
@@ -318,7 +318,7 @@ In the presented case even with a 100 times bigger transaction Alice was not suc
 
 In most of the reviewed cases pool-based prices are converging to the real market ones. Stablecoins have stable distributions with small price deviations keeping around estimated price (like an example, price of 1 US dollar for USDC token), meaning that pool-based price distributions will converge to the distribution of altcoin, NFT, STO that was set in pair with stablecoin.
 
-![Token price convergence](./distributions_images/token_price_convergence.JPG)
+![Token price convergence](./distributions_images/token_price_convergence.jpg)
 
 Stablecoin has stable price distribution with small deviations, while altcoin/NFT/STO price has higher deviation/changes causing pool-based altcoin/NFT/STO price converge to the external markets price.
 
