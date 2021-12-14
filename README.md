@@ -18,6 +18,11 @@ Current project contains Uniswap V2 pools transaction histories analysis shown i
     * [Monte Carlo transaction simulator](#monte-carlo-transaction-simulator)
     * [Simulations with best match to the real life distributions](#simulations-that-have-the-best-match-with-real-life-distributions)
     * [Parameter search algorithms](#parameter-search-algorithms)
+  * [Transaction history](#transaction-history):
+    * [Analysis strategy and performed data manupulations](#analysis-strategy-and-performed-data-manipulations)
+    * [MEV attack](#mev-attack)
+    * [How use of stablecoins in token pairs stabilizes distributions](#how-use-of-stablecoins-in-token-pairs-stabilizes-distributions)
+    * [What's next?](#whats-next)
 
 # Traders activity simulations and structure
 
