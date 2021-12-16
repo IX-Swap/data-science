@@ -17,7 +17,6 @@ def get_pool_v2_reserves_history(contract_id: str) -> list:
                                             verify=True, retries=3)
     
     client = Client(transport=sample_transport)
-    
     daily_data = []
     last_date = 0
 
@@ -42,7 +41,6 @@ def get_pool_v2_reserves_history(contract_id: str) -> list:
                  '}\n'
                 '}\n'
             )
-
             response = client.execute(query)
             last_date = response['pairDayDatas'][-1]['date']
             daily_data.extend(response['pairDayDatas'])
@@ -62,16 +60,12 @@ def list_to_reserves_dictionary(daily_reserve: list) -> dict:
     Returns:
         dict: dictionary of one reserve update record
     """
-    # reserve information
+    # reserve information, daily volume info, date of reserve info taken
     reserve0 = daily_reserve['reserve0']
     reserve1 = daily_reserve['reserve1']
     reserveUSD = daily_reserve['reserveUSD']
-    
-    # daily volume info
     dailyVolumeToken0 = daily_reserve['dailyVolumeToken0']
     dailyVolumeToken1 = daily_reserve['dailyVolumeToken1']
-    
-    # date of reserve info taken
     date = daily_reserve['date']
     
     return {
@@ -97,7 +91,6 @@ def get_pool_v2_history(contract_id: str, range_limit: int=100) -> list:
 
     all_swaps = []
     last_timestamp = 0
-
     client = Client(transport=sample_transport)
 
     for skip in tqdm(range(0, range_limit)):
@@ -130,11 +123,10 @@ def get_pool_v2_history(contract_id: str, range_limit: int=100) -> list:
                 '}\n'
             '}\n')
 
-            # get current response and extract from it last timestamp
+            # get current response, extract from it last timestamp, extend swaps history with
+            # current response
             response = client.execute(query)
             last_timestamp = response['swaps'][-1]['transaction']['timestamp']
-            
-            # extend swaps history with current response
             all_swaps.extend(response['swaps'])
 
         except Exception as e:
@@ -185,7 +177,6 @@ def get_pool_v2_mints(contract_id: str, range_limit: int) -> list:
                                             verify=True, retries=3)
 
     client = Client(transport=sample_transport)
-
     all_mints = []
     last_timestamp = 0
 
@@ -262,7 +253,6 @@ def get_pool_v2_burns(contract_id: str, range_limit: int) -> list:
                                             verify=True, retries=3)
 
     client = Client(transport=sample_transport)
-    
     all_burns = []
     last_timestamp = 0
 
@@ -355,7 +345,6 @@ def pool_mints_to_df(mints_list: list) -> pd.DataFrame:
     Returns:
         pd.DataFrame: pandas dataframe of mints
     """
-    
     # transform list of dictionaries into df
     all_mints_df = pd.DataFrame([list_to_mints_dictionary(mint) for mint in mints_list])
     
@@ -377,7 +366,6 @@ def pool_burns_to_df(burns_list: list) -> pd.DataFrame:
     Returns:
         pd.DataFrame: pandas dataframe of burns
     """
-    
     # transform list of dictionaries into df
     # !!! IMPORTANT: for burns the same list to dictionary transformer can be used as for mints
     all_burns_df = pd.DataFrame([list_to_mints_dictionary(burn) for burn in burns_list])
@@ -392,7 +380,21 @@ def pool_burns_to_df(burns_list: list) -> pd.DataFrame:
 
 
 def filter_swaps(all_swaps):
-    direct_swaps = list(filter(lambda x: ((x['amount0In'] != '0') ^ (x['amount1In'] !='0')) & ((x['amount0Out'] != '0') ^ (x['amount1Out'] != '0')) & (not ((x['amount0In'] == '0') & (x['amount0Out'] == '0')))  &  (not ((x['amount1In'] == '0') & (x['amount1Out'] == '0'))), all_swaps))
-    other_swaps = list(filter(lambda x: not (((x['amount0In'] != '0') ^ (x['amount1In'] !='0')) & ((x['amount0Out'] != '0') ^ (x['amount1Out'] != '0')) & (not ((x['amount0In'] == '0') & (x['amount0Out'] == '0')))  &  (not ((x['amount1In'] == '0') & (x['amount1Out'] == '0')))), all_swaps))
+    """Filter swaps to exclude "flash" ones
+
+    Args:
+        all_swaps: swaps history
+
+    Returns:
+        pair of simple swaps and "flash" ones
+    """
+    direct_swaps = list(filter(lambda x: ((x['amount0In'] != '0') ^ (x['amount1In'] !='0')) & 
+                               ((x['amount0Out'] != '0') ^ (x['amount1Out'] != '0')) & 
+                               (not ((x['amount0In'] == '0') & (x['amount0Out'] == '0')))  &  
+                               (not ((x['amount1In'] == '0') & (x['amount1Out'] == '0'))), all_swaps))
+    other_swaps = list(filter(lambda x: not (((x['amount0In'] != '0') ^ (x['amount1In'] !='0')) & 
+                                             ((x['amount0Out'] != '0') ^ (x['amount1Out'] != '0')) & 
+                                             (not ((x['amount0In'] == '0') & (x['amount0Out'] == '0'))) & 
+                                             (not ((x['amount1In'] == '0') & (x['amount1Out'] == '0')))), all_swaps))
     
     return direct_swaps, other_swaps

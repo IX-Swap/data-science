@@ -250,11 +250,9 @@ class NormalGenerator:
         Keyword_arguments:
         transactions_count (int) -- required transactions count
         """
-        return truncnorm.rvs(
-            (self.lower_bound - self.mu)/self.sigma, 
-            (self.upper_bound - self.mu)/self.sigma, 
-            loc=self.mu, scale=self.sigma, size=transactions_count
-        )
+        return truncnorm.rvs((self.lower_bound - self.mu)/self.sigma, 
+                            (self.upper_bound - self.mu)/self.sigma, 
+                            loc=self.mu, scale=self.sigma, size=transactions_count)
 
 
 
@@ -262,10 +260,8 @@ class Transaction:
     """
     Class with information regarding swapping transaction
     """
-    def __init__(self, timestamp: datetime, 
-                token_in_amount: float, token_in: str, 
-                token_out: str, 
-                slope: float=0.05):
+    def __init__(self, timestamp: datetime, token_in_amount: float, token_in: str, 
+                token_out: str, slope: float=0.05):
         self.datetime_timestamp = timestamp
         self.token_in = token_in
         self.token_in_amount = token_in_amount
@@ -279,28 +275,20 @@ class Transaction:
         
     
     def to_string(self) -> str:
-        return str(
-            'Transaction {datetime timestamp = ' + str(self.datetime_timestamp) + 
-            ', token in amount = "' + str(self.token_in_amount) + 
-            '", token in name = ' + str(self.token_in) + 
-            ', token out amount = ' + str(self.token_out_amount) + 
-            ', token out name = ' + str(self.token_out) + 
-            ', slope = ' + str(self.slope) + '}'
-        )
+        return str('Transaction {datetime timestamp = ' + str(self.datetime_timestamp) + 
+                    ', token in amount = "' + str(self.token_in_amount) + 
+                    '", token in name = ' + str(self.token_in) + 
+                    ', token out amount = ' + str(self.token_out_amount) + 
+                    ', token out name = ' + str(self.token_out) + 
+                    ', slope = ' + str(self.slope) + '}')
 
     
     def to_record(self) -> np.array:
         """
         Transform transaction data into numpy array of data
         """
-        return np.array([
-            self.datetime_timestamp,
-            self.token_in,
-            self.token_in_amount,
-            self.token_out,
-            self.token_out_amount,
-            self.slope
-        ])
+        return np.array([self.datetime_timestamp, self.token_in, self.token_in_amount,
+                        self.token_out, self.token_out_amount, self.slope])
 
     
 
@@ -359,12 +347,10 @@ class MonteCarloTransactionSimulator:
         
         # form new transactions and record them into 'transaction history' variable
         for index in range(len(timestamps)):
-            self.transaction_history.append(Transaction(
-                timestamp=timestamps[index], 
-                token_in_amount=token_in_values[index], 
-                token_in=self.first_currency,
-                token_out=self.second_currency
-            ))
+            self.transaction_history.append(Transaction(timestamp=timestamps[index], 
+                                                        token_in_amount=token_in_values[index], 
+                                                        token_in=self.first_currency,
+                                                        token_out=self.second_currency))
 
 
     def get_history(self) -> list:
@@ -383,9 +369,8 @@ class MonteCarloTransactionSimulator:
         """
         # vectorize all transactions into numpy matrix and then make dataframe out of it
         transactions_matrix = np.array([transaction.to_record() for transaction in self.transaction_history])
-        transaction_history_df = pd.DataFrame(data=transactions_matrix, columns=[
-            'datetime_timestamp', 'TokenIn', 'TokenInAmount', 'TokenOut', 'TokenOutAmount', 'Slope'
-        ])
+        transaction_history_df = pd.DataFrame(data=transactions_matrix, columns=['datetime_timestamp', 'TokenIn', 'TokenInAmount', 
+                                                                                 'TokenOut', 'TokenOutAmount', 'Slope'])
 
         # fix transformation of numerical features into string at numpy stage to numerical again
         transaction_history_df['TokenInAmount'] = pd.to_numeric(transaction_history_df['TokenInAmount'])
@@ -402,9 +387,8 @@ class MonteCarloTransactionSimulator:
     def get_dataframe(self) -> pd.DataFrame:
         # vectorize all transactions into numpy matrix and then make dataframe out of it
         transactions_matrix = np.array([transaction.to_record() for transaction in self.transaction_history])
-        transaction_history_df = pd.DataFrame(data=transactions_matrix, columns=[
-            'datetime_timestamp', 'TokenIn', 'TokenInAmount', 'TokenOut', 'TokenOutAmount', 'Slope'
-        ])
+        transaction_history_df = pd.DataFrame(data=transactions_matrix, columns=['datetime_timestamp', 'TokenIn', 'TokenInAmount', 
+                                                                                 'TokenOut', 'TokenOutAmount', 'Slope'])
 
         # fix transformation of numerical features into string at numpy stage to numerical again
         transaction_history_df['TokenInAmount'] = pd.to_numeric(transaction_history_df['TokenInAmount'])
@@ -557,6 +541,3 @@ class LognormalParameterSearcher:
         ax.set_xlabel("scale")
         ax.set_ylabel("harmonic error")
         plt.show()
-
-
-

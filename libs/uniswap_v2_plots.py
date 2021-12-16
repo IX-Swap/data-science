@@ -12,14 +12,20 @@ from gql.transport.requests import RequestsHTTPTransport
 
 
 def show_swaps_count_moving_averages(swaps_df: pd.DataFrame, pool_name: str, x_size: int=10, y_size: int=5):
+    """Show moving averages of the transactions count
+
+    Args:
+        swaps_df (pd.DataFrame): swap transaction history
+        pool_name (str): name of pool
+        x_size (int, optional): width of figure. Defaults to 10.
+        y_size (int, optional): height of figure. Defaults to 5.
+    """
     # transform unix timestamps into datetime
     transactions_time = swaps_df.copy()
     transactions_time.timestamp = pd.to_datetime(swaps_df.timestamp, unit='s')
     
-    # set index datetime column
+    # set index datetime column, resample data and find rolling average per week
     transactions_time.index = transactions_time.timestamp
-    
-    # resample data and find rolling average per week
     transactions_time = transactions_time.resample('1D').size()
     transactions_avg_time = transactions_time.rolling('7D').mean()
     
@@ -27,10 +33,8 @@ def show_swaps_count_moving_averages(swaps_df: pd.DataFrame, pool_name: str, x_s
     fig.autofmt_xdate()
 
     # plot presented information
-    ax.plot_date(transactions_time.index, transactions_time, linestyle='solid', marker=None, 
-                 label='Number of swaps per day')
-    ax.plot_date(transactions_avg_time.index, transactions_avg_time, linestyle='solid', marker=None, color='red', 
-                 label='Moving average 7 days')
+    ax.plot_date(transactions_time.index, transactions_time, linestyle='solid', marker=None, label='Daily average')
+    ax.plot_date(transactions_avg_time.index, transactions_avg_time, linestyle='solid', marker=None, color='red', label='Weekly rolling average')
     
     # set labels
     ax.set_xlabel("Day")
@@ -39,25 +43,17 @@ def show_swaps_count_moving_averages(swaps_df: pd.DataFrame, pool_name: str, x_s
     fig.legend()
     
 
-# def show_swaps_reserves_evolution_through_time(swaps_df: pd.DataFrame, first_token_symbol: str, second_token_symbol: str, 
-#                                                pool_name: str, first_label_name: str, second_label_name=str, 
-#                                                x_size: int=10, y_size: int=5):
-#     fig, ax1 = plt.subplots(figsize=(x_size, y_size))
-
-#     ax2 = ax1.twinx()
-#     fig.autofmt_xdate()
-
-#     ax1.plot_date(swaps_df.date, swaps_df.reserve0, linestyle='solid', marker=None, label=first_token_symbol)
-#     ax2.plot_date(swaps_df.date, swaps_df.reserve1, linestyle='solid', marker=None, color='red', label=second_token_symbol)
-
-#     ax1.set_title("Daily reserve values for pool " + pool_name)
-#     fig.legend()
-
-#     ax1.set_ylabel(first_label_name)
-#     ax2.set_ylabel(second_label_name)
-
 def show_swaps_reserves_evolution_through_time(swaps_df: pd.DataFrame, first_token_reserve_name: str, second_token_reserve_name: str, 
                                                x: int=10, y: int=5):
+    """Draw reserves distributions through time
+
+    Args:
+        swaps_df (pd.DataFrame): daily reserves history
+        first_token_reserve_name (str): name of the first token
+        second_token_reserve_name (str): name of the second token
+        x (int, optional): width of the figure. Defaults to 10.
+        y (int, optional): height of the figure. Defaults to 5.
+    """
     fig = plt.figure(figsize=(x, y))
     
     plt.subplot(1, 2, 1)
@@ -71,6 +67,19 @@ def show_swaps_reserves_evolution_through_time(swaps_df: pd.DataFrame, first_tok
     
 def show_pool_price_evolution_from_reserves(df: pd.DataFrame, first_token_price_name: str, second_token_price_name: str, 
                                             x: int=10, y: int=5, hspace: float=0.25, wspace: float=0.25):
+    """Show reserve-based price distributions. Ensure that you set names of the first and the
+    second tokens correctly, considering that addressing the reserves is abstract and price
+    may not match their names
+
+    Args:
+        df (pd.DataFrame): daily reserves updates
+        first_token_price_name (str): name of the first token
+        second_token_price_name (str): name of the second token
+        x (int, optional): width of the figure. Defaults to 10.
+        y (int, optional): height of the figure. Defaults to 5.
+        hspace (float, optional): height space between charts. Defaults to 0.25.
+        wspace (float, optional): width space between charts. Defaults to 0.25.
+    """
     fig = plt.figure(figsize=(x, y))    
     
     df['first_price'] = df['reserve0'] / df['reserve1']
@@ -87,14 +96,20 @@ def show_pool_price_evolution_from_reserves(df: pd.DataFrame, first_token_price_
     
     
 def show_swaps_amount_in_moving_averages(swaps_df: pd.DataFrame, pool_name: str, x_size: int=10, y_size: int=5):
+    """Show moving averages of transaction amount in values
+
+    Args:
+        swaps_df (pd.DataFrame): swapping history
+        pool_name (str): name of the pool
+        x_size (int, optional): [description]. width of the figure.
+        y_size (int, optional): [description]. height of the figure.
+    """
     # transform unix timestamps into datetime
     transactions_time = swaps_df.copy()
     transactions_time.timestamp = pd.to_datetime(swaps_df.timestamp, unit='s')
     
-    # set index datetime column
+    # set index datetime column, resample data and find rolling average per week
     transactions_time.index = transactions_time.timestamp
-    
-    # resample data and find rolling average per week
     transactions_time = transactions_time.resample('1D').mean()
     transactions_avg_time = transactions_time.rolling('7D').mean()
     
@@ -102,10 +117,8 @@ def show_swaps_amount_in_moving_averages(swaps_df: pd.DataFrame, pool_name: str,
     fig.autofmt_xdate()
 
     # plot presented information
-    ax.plot_date(transactions_time.index, transactions_time.amount_in, linestyle='solid', marker=None, 
-                 label='Number of swaps per day')
-    ax.plot_date(transactions_avg_time.index, transactions_avg_time.amount_in, linestyle='solid', marker=None, color='red', 
-                 label='Moving average 7 days')
+    ax.plot_date(transactions_time.index, transactions_time.amount_in, linestyle='solid', marker=None, label='Number of swaps per day')
+    ax.plot_date(transactions_avg_time.index, transactions_avg_time.amount_in, linestyle='solid', marker=None, color='red', label='Moving average 7 days')
     
     # set labels
     ax.set_xlabel("Day")
