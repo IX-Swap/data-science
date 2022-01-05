@@ -123,7 +123,7 @@ def show_swaps_amount_in_moving_averages(swaps_df: pd.DataFrame, pool_name: str,
     # set labels
     ax.set_xlabel("Day")
     ax.set_ylabel("Value")
-    ax.set_title("Averages of swaps in values of the pool" + pool_name)
+    ax.set_title("Averages of swaps in values of the pool " + pool_name)
     fig.legend()
     
     
