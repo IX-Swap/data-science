@@ -388,7 +388,7 @@ class Simulation:
         
         
     def plot_cumulative_prices_with_and_without_mitigation(self, pure_df: pd.DataFrame, mitigated_df: pd.DataFrame,
-                                                           makeBigNumConvert: bool=False):
+                                                           make_big_num_convert: bool=False):
         """plot cumulative price distribution without mitigation from the left and with from the right
 
         Args:
@@ -399,10 +399,10 @@ class Simulation:
         ax2 = ax[0].twinx()
 
         ax[0].plot(pure_df.transaction_timestamp, 
-                   pure_df.price_X_cumulative if not makeBigNumConvert else pure_df.price_X_cumulative.to_numpy().astype(np.float64), 
+                   pure_df.price_X_cumulative if not make_big_num_convert else pure_df.price_X_cumulative.to_numpy().astype(np.float64), 
                    label=f'reserve_X ({self.x_name})')
         ax2.plot(pure_df.transaction_timestamp, 
-                 pure_df.price_Y_cumulative if not makeBigNumConvert else pure_df.price_Y_cumulative.to_numpy().astype(np.float64), 
+                 pure_df.price_Y_cumulative if not make_big_num_convert else pure_df.price_Y_cumulative.to_numpy().astype(np.float64), 
                  label=f'reserve_Y ({self.y_name})', color='orange')
 
         ax[0].set_xlabel('time')
@@ -414,10 +414,10 @@ class Simulation:
         ax2 = ax[1].twinx()
 
         ax[1].plot(mitigated_df.transaction_timestamp, 
-                   mitigated_df.price_X_cumulative if not makeBigNumConvert else mitigated_df.price_X_cumulative.to_numpy().astype(np.float64), 
+                   mitigated_df.price_X_cumulative if not make_big_num_convert else mitigated_df.price_X_cumulative.to_numpy().astype(np.float64), 
                    label=f'reserve_X ({self.x_name})')
         ax2.plot(mitigated_df.transaction_timestamp, 
-                 mitigated_df.price_Y_cumulative if not makeBigNumConvert else mitigated_df.price_Y_cumulative.to_numpy().astype(np.float64), 
+                 mitigated_df.price_Y_cumulative if not make_big_num_convert else mitigated_df.price_Y_cumulative.to_numpy().astype(np.float64), 
                  label=f'reserve_Y ({self.y_name})', color='orange')
 
         ax[1].set_xlabel('time')
@@ -432,20 +432,30 @@ class Simulation:
         fig.show()
         
     
-    def plot_transactions_by_type(self, mitigated_df: pd.DataFrame, ignoreSuccess: bool=False, 
-                                  width: int=5, height: int=5, ignoreBlocked: bool=False, 
-                                  ignoreNotEnough: bool=False, separatePlots: bool=False):
-        if separatePlots:
+    def plot_transactions_by_type(self, mitigated_df: pd.DataFrame, ignore_success: bool=False, 
+                                  width: int=5, height: int=5, ignore_blocked: bool=False, 
+                                  ignore_not_enough: bool=False, separate_plots: bool=False):
+        """plot successful transactions in line plots form, blocked and not enough reserves transactions as points
+
+        Args:
+            mitigated_df (pd.DataFrame): swaps dataframe with applied mitigation
+            ignore_success (bool, optional): is it required to ignore successful swaps. Defaults to False.
+            width (int, optional): width of chart. Defaults to 5.
+            height (int, optional): height of chart. Defaults to 5.
+            ignore_blocked (bool, optional): ignore blocked transactions. Defaults to False.
+            ignore_not_enough (bool, optional): ignore not enough reserves swaps. Defaults to False.
+            separate_plots (bool, optional): make separated plots for each token. Defaults to False.
+        """
+        if separate_plots:
             fig, ax = plt.subplots(1, 2, figsize=(width, height))
             
-            if not ignoreSuccess:
+            if not ignore_success:
                 success_df = mitigated_df[mitigated_df.status == 'SUCCESS']
                 ax[0].plot(success_df.transaction_timestamp, success_df.reserve_X - success_df.reserve_X_before, 
                         label=f'transaction {self.x_name} value SUCCESS', color='red')
                 ax[1].plot(success_df.transaction_timestamp, success_df.reserve_Y - success_df.reserve_Y_before, 
                         label=f'transaction {self.y_name} value SUCCESS', color='maroon', ls='--')
-            
-            if not ignoreBlocked:
+            if not ignore_blocked:
                 blocked_df = mitigated_df[mitigated_df.status == 'BLOCKED_BY_VOLATILITY_MITIGATION']
                 ax[0].scatter(blocked_df[blocked_df.token_in == self.x_name].transaction_timestamp, 
                         blocked_df[blocked_df.token_in == self.x_name].token_in_amount, 
@@ -453,8 +463,7 @@ class Simulation:
                 ax[1].scatter(blocked_df[blocked_df.token_in == self.y_name].transaction_timestamp, 
                             blocked_df[blocked_df.token_in == self.y_name].token_in_amount, 
                         label=f'transaction {self.y_name} value BLOCKED', color='navy')
-            
-            if not ignoreNotEnough:
+            if not ignore_not_enough:
                 not_enough_df = mitigated_df[mitigated_df.status == 'NOT_ENOUGH_RESERVES']
                 ax[0].scatter(not_enough_df[not_enough_df.token_in == self.x_name].transaction_timestamp, 
                         not_enough_df[not_enough_df.token_in == self.x_name].token_in_amount, 
@@ -473,21 +482,21 @@ class Simulation:
             fig.autofmt_xdate(rotation=25)
             fig.legend()
             fig.tight_layout()
-            plt.grid(True, color='black', linestyle='--', linewidth=0.5)
+            ax[0].grid(True, color='black', linestyle='--', linewidth=0.5)
+            ax[1].grid(True, color='black', linestyle='--', linewidth=0.5)
             fig.show()
         
         else:
             fig, ax = plt.subplots(figsize=(width, height))
             ax2 = ax.twinx()
             
-            if not ignoreSuccess:
+            if not ignore_success:
                 success_df = mitigated_df[mitigated_df.status == 'SUCCESS']
                 ax.plot(success_df.transaction_timestamp, success_df.reserve_X - success_df.reserve_X_before, 
                         label=f'transaction {self.x_name} value SUCCESS', color='red')
                 ax2.plot(success_df.transaction_timestamp, success_df.reserve_Y - success_df.reserve_Y_before, 
                         label=f'transaction {self.y_name} value SUCCESS', color='maroon', ls='--')
-            
-            if not ignoreBlocked:
+            if not ignore_blocked:
                 blocked_df = mitigated_df[mitigated_df.status == 'BLOCKED_BY_VOLATILITY_MITIGATION']
                 ax.scatter(blocked_df[blocked_df.token_in == self.x_name].transaction_timestamp, 
                         blocked_df[blocked_df.token_in == self.x_name].token_in_amount, 
@@ -495,8 +504,7 @@ class Simulation:
                 ax2.scatter(blocked_df[blocked_df.token_in == self.y_name].transaction_timestamp, 
                             blocked_df[blocked_df.token_in == self.y_name].token_in_amount, 
                         label=f'transaction {self.y_name} value BLOCKED', color='navy')
-            
-            if not ignoreNotEnough:
+            if not ignore_not_enough:
                 not_enough_df = mitigated_df[mitigated_df.status == 'NOT_ENOUGH_RESERVES']
                 ax.scatter(not_enough_df[not_enough_df.token_in == self.x_name].transaction_timestamp, 
                         not_enough_df[not_enough_df.token_in == self.x_name].token_in_amount, 
@@ -515,3 +523,177 @@ class Simulation:
             fig.tight_layout()
             plt.grid(True, color='black', linestyle='--', linewidth=0.5)
             fig.show()
+            
+    
+    def plot_price_distribution(self, pure_df: pd.DataFrame, mitigated_df: pd.DataFrame, width: int=15, height: int=5, separate_plots: bool=False):     
+        """plot token prices distributions with enabled and disabled mitigation mechanisms
+
+        Args:
+            pure_df (pd.DataFrame): swaps dataframe without mitigation applied
+            mitigated_df (pd.DataFrame): swaps dataframe with applied mitigation
+            width (int, optional): width of the figure. Defaults to 15.
+            height (int, optional): height of the figure. Defaults to 5.
+            separate_plots (bool, optional): is it required to separate plots. Defaults to False.
+        """
+        if separate_plots:
+            fig, ax = plt.subplots(1, 2, figsize=(width, height))
+            
+            ax[0].plot_date(x=pure_df['transaction_timestamp'], y=pure_df['X_price'], linestyle='-', marker=None, label=f'{self.x_name} price (mitigation off)', color='red')
+            ax[0].plot_date(x=mitigated_df['transaction_timestamp'], y=mitigated_df['X_price'], linestyle='--', marker=None, label=f'{self.x_name} price (mitigation on)', color='maroon')
+            ax[1].plot_date(x=pure_df['transaction_timestamp'], 
+                            y=(np.ones(len(pure_df['X_price'])) / pure_df['X_price']) if (pure_df['X_price'] != 0).all() else np.zeros(len(pure_df['X_price'])), 
+                            linestyle=':', marker=None, label=f'{self.y_name} price (mitigation off)', color='blue')
+            ax[1].plot_date(x=mitigated_df['transaction_timestamp'], 
+                            y=(np.ones(len(mitigated_df['X_price'])) / mitigated_df['X_price']) if (mitigated_df['X_price'] != 0).all() else np.zeros(len(mitigated_df['X_price'])), 
+                            linestyle='-.', marker=None, label=f'{self.y_name} price (mitigation on)', color='navy')
+
+            ax[0].set_title(f'Variation of {self.x_name} price in the {self.x_name}/{self.y_name} pool over time')
+            ax[1].set_title(f'Variation of {self.y_name} price in the {self.x_name}/{self.y_name} pool over time')
+            ax[0].set_xlabel('Swap timestamp')
+            ax[1].set_xlabel('Swap timestamp')
+            ax[0].set_ylabel(f'{self.x_name} price')
+            ax[1].set_ylabel(f'{self.y_name} price')
+            ax[0].grid(True, color='black', linestyle='--', linewidth=0.5)
+            ax[1].grid(True, color='black', linestyle='--', linewidth=0.5)
+            fig.legend()
+            fig.autofmt_xdate(rotation=25)
+            fig.tight_layout()
+            plt.show()
+            
+        else:
+            fig, ax = plt.subplots(figsize=(width, height))
+            
+            ax.plot_date(x=pure_df['transaction_timestamp'], y=pure_df['X_price'], linestyle='-', marker=None, label=f'{self.x_name} price (mitigation off)', color='red')
+            ax.plot_date(x=mitigated_df['transaction_timestamp'], y=mitigated_df['X_price'], linestyle='--', marker=None, label=f'{self.x_name} price (mitigation on)', color='maroon')
+            ax.plot_date(x=pure_df['transaction_timestamp'], 
+                         y=(np.ones(len(pure_df['X_price'])) / pure_df['X_price']) if (pure_df['X_price'] != 0).all() else np.zeros(len(pure_df['X_price'])), 
+                         linestyle=':', marker=None, label=f'{self.y_name} price (mitigation off)', color='blue')
+            ax.plot_date(x=mitigated_df['transaction_timestamp'], 
+                         y=(np.ones(len(mitigated_df['X_price'])) / mitigated_df['X_price']) if (mitigated_df['X_price'] != 0).all() else np.zeros(len(mitigated_df['X_price'])), 
+                         linestyle='-.', marker=None, label=f'{self.y_name} price (mitigation on)', color='navy')
+
+            ax.set_title(f'Variation of token prices in the {self.x_name}/{self.y_name} pool over time')
+            ax.set_xlabel('Swap timestamp')
+            ax.set_ylabel('Token prices')
+            fig.legend()
+            fig.autofmt_xdate(rotation=25)
+            fig.tight_layout()
+            ax.grid(True, color='black', linestyle='--', linewidth=0.5)
+            plt.show()
+            
+    
+    def plot_frequency_distribution(self, swaps_df: pd.DataFrame, width: int=15, height: int=5):
+        """plot swaps frequency distribution over time
+
+        Args:
+            swaps_df (pd.DataFrame): swaps dataframe
+            width (int, optional): width of the figure. Defaults to 15.
+            height (int, optional): height of the figure. Defaults to 5.
+        """
+        swaps_indexed_df = swaps_df.copy()
+        swaps_indexed_df.index = swaps_df.transaction_timestamp
+        resampled24 = swaps_indexed_df.resample('24h').size()
+        mov_avg = resampled24.rolling('14d').mean()
+
+        fig, ax = plt.subplots(figsize=(width, height))
+
+        plt.plot_date(resampled24.index, resampled24.values, markersize=1, linestyle='solid', marker='None', label='Nr. transactions per day')
+        plt.plot_date(mov_avg.index, mov_avg.values, markersize=1, linestyle='solid', marker='None', label='14 days moving average')
+
+        ax.set_title(f'Daily transaction frequency for the {self.x_name}/{self.y_name} pool')
+        ax.set_xlabel('Time')
+        ax.set_ylabel('Transaction count')
+        ax.grid(True, color='black', linestyle='--', linewidth=0.5)
+        fig.autofmt_xdate(rotation=25)
+        fig.legend()
+        plt.grid(True)
+        plt.show()
+        
+        
+    def plot_price_impact(self, pure_df: pd.DataFrame, mitigated_df: pd.DataFrame, width: int=15, height: int=5, smallest_y: float=0, biggest_y: float=0):
+        """Present line plots of the swap impacts on the prices
+
+        Args:
+            pure_df (pd.DataFrame): swaps dataframe without applied mitigation
+            mitigated_df (pd.DataFrame): swaps dataframe with applied mitigation
+            width (int, optional): width of chart. Defaults to 15.
+            height (int, optional): height of chart. Defaults to 5.
+            smallest_y (float, optional): smallest value of y to present on axis. Defaults to 0.
+            biggest_y (float, optional): biggest value of y to present on axis. Defaults to 0.
+        """
+        fig, ax = plt.subplots(figsize=(width, height))
+
+        ax.plot_date(data=pure_df, x='transaction_timestamp', y='price_diff', linestyle='solid', color='red', marker=None, label='Mitigation off')
+        ax.plot_date(data=mitigated_df, x='transaction_timestamp', y='price_diff', linestyle='solid', marker=None, label='Mitigation off')
+
+        ax.set_ylim(smallest_y, biggest_y)
+        ax.set_xlabel('Timestamp')
+        ax.set_ylabel('Price impact after swap')
+        ax.set_title(f'Price impact distribution for {self.x_name}/{self.y_name} after each transaction (1=100%)')
+        ax.grid(True, color='black', linestyle='--', linewidth=0.5)
+        fig.legend()
+        
+
+        
+    def extract_filtered_and_mevs_dfs(self) -> pd.DataFrame:
+        """extract pair of swaps dataframe filtered from MEVs and dataframe of MEVs
+
+        Returns:
+            pd.DataFrame: pair of dataframes, first one filtered from MEVs and second one - MEVs
+        """
+        # perform data grouping
+        swaps_df = self.get_original_swaps_df()
+        grouped = swaps_df.groupby('timestamp')
+        l = None
+
+        # set arrays to save y values and transaction hash codes
+        y_values = []
+        txds = []
+
+        # go through all estimated transaction groups by timestamp
+        for name, group in grouped:
+            # mev-sandwich attack requires presence of 3 or more transactions in one block
+            if len(group) <= 2:
+                continue
+
+            # extract x and y tokens swaps
+            x_swaps = group[group.token_in == self.x_name]
+            y_swaps = group[group.token_in == self.y_name]
+
+            # iterate through all x token swaps to find matching values, extract swap and save separately transaction value and transaction hash code
+            for index, row in x_swaps.iterrows():
+                if row['amount_out'] in y_swaps.amount_in.values:
+                    s = y_swaps[y_swaps.amount_in == row['amount_out']].iloc[0]
+
+                    if row['amount_in'] < s['amount_out']:
+                        y_values.append(s['amount_in'])
+                        txds.append(s['txd'])
+                        txds.append(row['txd'])
+
+            # iterate through all y token swaps and perform the same actions as in previous cycle
+            for index, row in y_swaps.iterrows():
+                pass
+                if row['amount_out'] in x_swaps.amount_in.values:
+                    s = x_swaps[x_swaps.amount_in == row['amount_out']].iloc[0]
+
+                    if row['amount_in'] < s['amount_out']:
+                        y_values.append(row['amount_in'])
+                        txds.append(s['txd'])
+                        txds.append(row['txd'])  
+                        
+        filtered_swaps_df = swaps_df[~swaps_df.txd.isin(txds)]
+        print(f'initial len = {len(swaps_df)}, filtered len = {len(filtered_swaps_df)}')
+        
+        print(f"txds = {len(txds)}")
+        print(f"out values = {len(y_values)}")
+
+        return filtered_swaps_df, swaps_df[swaps_df['txd'].isin(txds)]
+    
+    
+    def get_original_swaps_df(self) -> pd.DataFrame:
+        """get original swaps history dataframe
+
+        Returns:
+            pd.DataFrame: swaps dataframe
+        """
+        return pd.read_pickle(fr'{os.getcwd()}\data\pair_history\{self.x_name}_{self.y_name}\{self.x_name.lower()}_{self.y_name.lower()}_swaps.pkl')
