@@ -146,24 +146,6 @@ def calc_price_and_increase_rates(df: pd.DataFrame):
     df['second_price_increase_rate'] = ((df.second_price - second_price_sequence) / second_price_sequence) * 100
     
     
-def calc_price_and_increase_rates(df: pd.DataFrame):
-    """Find reserve-based prices and prices increase rates
-
-    Args:
-        df (pd.DataFrame): reserves dataframe
-    """
-    first_price_sequence = df.reserve0 / df.reserve1
-    second_price_sequence = df.reserve1 / df.reserve0
-    df['first_price'] = first_price_sequence
-    df['second_price'] = second_price_sequence
-
-    first_price_sequence = first_price_sequence.shift(periods=-1)
-    second_price_sequence = second_price_sequence.shift(periods=-1)
-
-    df['first_price_increase_rate'] = ((df.first_price - first_price_sequence) / first_price_sequence) * 100
-    df['second_price_increase_rate'] = ((df.second_price - second_price_sequence) / second_price_sequence) * 100
-    
-    
 def increase_rate_moving_averages(df: pd.DataFrame, first_plot_name: str, second_plot_name: str, x_size: int=10, y_size: int=5, wspace: int=0.1, hspace: int=0.1):
     """plot price change rates moving averages
 

@@ -3,6 +3,7 @@ from random import randrange
 import itertools
 import pandas as pd
 import amm
+import math
 import os
 import numpy as np
 import blockchain
@@ -477,7 +478,7 @@ class Simulation:
             ax[0].set_ylabel(f"{self.x_name} value")
             ax[1].set_ylabel(f"{self.y_name} value")
             ax[0].set_title(f'Transaction values for {self.x_name} side of {self.x_name}/{self.y_name} pool respective to statuses (Volatility mitigator on)')
-            ax[1].set_title(f'Transaction values for {self.x_name} side of {self.x_name}/{self.y_name} pool respective to statuses (Volatility mitigator on)')
+            ax[1].set_title(f'Transaction values for {self.y_name} side of {self.x_name}/{self.y_name} pool respective to statuses (Volatility mitigator on)')
             
             fig.autofmt_xdate(rotation=25)
             fig.legend()
@@ -633,7 +634,6 @@ class Simulation:
         ax.grid(True, color='black', linestyle='--', linewidth=0.5)
         fig.legend()
         
-
         
     def extract_filtered_and_mevs_dfs(self) -> pd.DataFrame:
         """extract pair of swaps dataframe filtered from MEVs and dataframe of MEVs
@@ -660,7 +660,7 @@ class Simulation:
             x_swaps = group[group.token_in == self.x_name]
             y_swaps = group[group.token_in == self.y_name]
 
-            # iterate through all x token swaps to find matching values, extract swap and save separately transaction value and transaction hash code
+            # iterate through all x token swaps to find matching values, extract swap and save its value with has code
             for index, row in x_swaps.iterrows():
                 if row['amount_out'] in y_swaps.amount_in.values:
                     s = y_swaps[y_swaps.amount_in == row['amount_out']].iloc[0]
@@ -688,6 +688,158 @@ class Simulation:
         print(f"out values = {len(y_values)}")
 
         return filtered_swaps_df, swaps_df[swaps_df['txd'].isin(txds)]
+    
+
+    def extract_suspicious_and_filtered_swaps_dfs(self, difference_threshold_percents: int=5):
+        '''
+        Find possible MEVs transactions. Transactions are considered as MEV ones if they have:
+            * same sender
+            * same block
+            * each transaction inside the pair is in a distinct direction
+            * the percentage difference is less than specified threshold
+        
+        Args:
+            difference_threshold_percents (int): difference threshold in percents to define MEV
+                                                transactions. Defaults to 5.
+        '''
+        swaps_df = self.get_original_swaps_df()
+        grouped = swaps_df.groupby(['timestamp', 'sender'])
+        
+        y_values = []
+        txds = []
+        
+        for name, group in grouped:
+            if len(group) != 2:
+                continue
+                
+            s0 = group.iloc[0]
+            s1 = group.iloc[1]
+            
+            if s0.token_in == s1.token_in:
+                continue
+                
+            in0 = s0.amount_in
+            in1 = s1.amount_in
+            
+            out0 = s0.amount_out
+            out1 = s1.amount_out
+            
+            perc_diff0 = abs(out1 - in0) / math.ceil((out1 + in0) / 2) * 100
+            perc_diff1 = abs(out0 - in1) / math.ceil((out0 + in1) / 2) * 100
+            
+            if perc_diff0 <= difference_threshold_percents or perc_diff1 <= difference_threshold_percents:
+                # print(min(perc_diff0, perc_diff1))
+                
+                # if min(perc_diff0, perc_diff1) > 4:
+                #     print(s0.txd)
+                #     print(s1.txd)
+                #     print("\n")
+                txds.extend([s0.txd, s1.txd])
+                
+        suspicious_swaps_df = swaps_df[~swaps_df.txd.isin(txds)]
+        print(f'initial len = {len(swaps_df)}, filtered len = {len(suspicious_swaps_df)}')
+        
+        print(f"txds = {len(txds)}")
+        print(f"out values = {len(txds) / 2}")
+
+        return suspicious_swaps_df, swaps_df[swaps_df['txd'].isin(txds)]
+    
+    
+    def show_swaps_and_mevs_by_token(self, swaps_df: pd.DataFrame, mevs_df: pd.DataFrame, width: int=10, height: int=10):
+        fig, ax = plt.subplots(figsize=(width, height))
+        ax.plot(swaps_df[swaps_df.token_in == self.x_name].timestamp, 
+                swaps_df[swaps_df.token_in == self.x_name].amount_in, 
+                color='r', label=f'{self.x_name} filtered swaps')
+        ax.plot_date(mevs_df[mevs_df.token_in == self.x_name].timestamp, 
+                mevs_df[mevs_df.token_in == self.x_name].amount_in, color='b', 
+                marker='x', label=f'{self.x_name} mevs')
+
+        ax.set_xlabel("Time")
+        ax.set_ylabel("Swap value")
+        ax.set_title(f'{self.x_name} swaps and mevs values for {self.x_name}/{self.y_name} pool')
+        ax.legend()
+        plt.grid(True, linestyle='--')
+        plt.show()
+
+        fig, ax = plt.subplots(figsize=(width, height))
+        ax.plot(swaps_df[swaps_df.token_in == self.y_name].timestamp, 
+                swaps_df[swaps_df.token_in == self.y_name].amount_in, 
+                color='r', label=f'{self.y_name} filtered swaps')
+        ax.plot_date(mevs_df[mevs_df.token_in == self.y_name].timestamp, 
+                mevs_df[mevs_df.token_in == self.y_name].amount_in, color='b', 
+                marker='x', label=f'{self.y_name} mevs')
+
+        ax.set_xlabel("Time")
+        ax.set_ylabel("Swap value")
+        ax.set_title(f'{self.y_name} swaps values for {self.x_name}/{self.y_name} pool')
+        ax.legend()
+        plt.grid(True, linestyle='--')
+        plt.show()
+        
+        
+    def show_swaps_and_mevs_daily_count_by_token(self, swaps_df: pd.DataFrame, mevs_df: pd.DataFrame, mevs_alter_axis: bool=False, width: int=15, height: int=7):
+        
+        if not mevs_alter_axis:
+            fig, ax = plt.subplots(figsize=(width, height))
+            daily_mevs_df = mevs_df['timestamp'].dt.floor('d').value_counts().rename_axis('date').reset_index(name='count')
+            daily_mevs_df = daily_mevs_df.sort_values(by='date')
+            ax.hist(swaps_df['timestamp'], bins=(swaps_df.iloc[len(swaps_df) - 1]['timestamp'] - swaps_df.iloc[0]['timestamp']).days, 
+                       color='r', label='Swaps count')
+            ax.plot_date(daily_mevs_df['date'], daily_mevs_df['count'], color='b', label='MEV swaps count')
+            ax.set_xlabel('Time')
+            ax.set_ylabel('Transaction Count')
+            ax.set_title(f'Daily swaps count for {self.x_name}/{self.y_name} pool')
+            ax.grid(True, axis='both', linestyle='--')
+
+            fig.autofmt_xdate(rotation=25)
+            fig.tight_layout()
+            fig.legend()
+            plt.show()
+        else:
+            fig, ax = plt.subplots(figsize=(width, height))
+            ax2 = ax.twinx()
+            daily_mevs_df = mevs_df['timestamp'].dt.floor('d').value_counts().rename_axis('date').reset_index(name='count')
+            daily_mevs_df = daily_mevs_df.sort_values(by='date')
+            ax.hist(swaps_df['timestamp'], bins=(swaps_df.iloc[len(swaps_df) - 1]['timestamp'] - swaps_df.iloc[0]['timestamp']).days, 
+                       color='r', label='Swaps count')
+            ax2.plot_date(daily_mevs_df['date'], daily_mevs_df['count'], color='b', label='MEV swaps count')
+            ax.set_xlabel('Time')
+            ax.set_ylabel('Swaps count')
+            ax2.set_ylabel('Mevs count')
+            ax2.set_ylim([0, daily_mevs_df['count'].max()*1.05])
+            ax.set_title(f'Daily swaps count for {self.x_name}/{self.y_name} pool')
+            ax.grid(True, axis='both', linestyle='--')
+
+            fig.autofmt_xdate(rotation=25)
+            fig.tight_layout()
+            fig.legend()
+            plt.show()
+            
+            
+    def show_mevs_to_swaps_ratio(self, swaps_df: pd.DataFrame, mevs_df: pd.DataFrame, width: int=10, height: int=5):
+        fig, ax = plt.subplots(figsize=(10, 10))
+        ax2 = ax.twinx()
+
+        daily_mevs_df = mevs_df['timestamp'].dt.floor('d').value_counts().rename_axis('date').reset_index(name='mevs count')
+        daily_mevs_df = daily_mevs_df.sort_values(by='date')
+
+        daily_swaps_df = swaps_df['timestamp'].dt.floor('d').value_counts().rename_axis('date').reset_index(name='count')
+        daily_swaps_df = daily_swaps_df.sort_values(by='date')
+
+        daily_swaps_mevs_df = pd.merge(daily_swaps_df, daily_mevs_df, on='date')
+        ax.plot_date(daily_swaps_mevs_df['date'], 
+                     (daily_swaps_mevs_df['mevs count']/daily_swaps_mevs_df['count']) * 100, 
+                     color='r', linestyle='-', label='Mevs transactions ratio')
+        ax2.plot_date(daily_swaps_mevs_df['date'], daily_swaps_mevs_df['count'], color='b', linestyle='--', label='Swaps count')
+        ax.set_xlabel('Time')
+        ax.set_ylabel('Ratio in %')
+        ax2.set_ylabel('Swaps count')
+        fig.legend()
+        ax.grid(True, linestyle='--')
+        ax.set_title(f'MEV transactions to swaps ratio distribution in % for {self.x_name}/{self.y_name} pool')
+
+        fig.autofmt_xdate(rotation=25)
+        plt.show()
     
     
     def get_original_swaps_df(self) -> pd.DataFrame:
