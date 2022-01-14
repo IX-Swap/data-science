@@ -720,7 +720,6 @@ class Simulation:
                 
             in0 = s0.amount_in
             in1 = s1.amount_in
-            
             out0 = s0.amount_out
             out1 = s1.amount_out
             
@@ -728,12 +727,6 @@ class Simulation:
             perc_diff1 = abs(out0 - in1) / math.ceil((out0 + in1) / 2) * 100
             
             if perc_diff0 <= difference_threshold_percents or perc_diff1 <= difference_threshold_percents:
-                # print(min(perc_diff0, perc_diff1))
-                
-                # if min(perc_diff0, perc_diff1) > 4:
-                #     print(s0.txd)
-                #     print(s1.txd)
-                #     print("\n")
                 txds.extend([s0.txd, s1.txd])
                 
         suspicious_swaps_df = swaps_df[~swaps_df.txd.isin(txds)]
@@ -778,7 +771,17 @@ class Simulation:
         
         
     def show_swaps_and_mevs_daily_count_by_token(self, swaps_df: pd.DataFrame, mevs_df: pd.DataFrame, mevs_alter_axis: bool=False, width: int=15, height: int=7):
-        
+        """show swaps and mev transactions daily count distribution
+
+        Args:
+            swaps_df (pd.DataFrame): swaps history of the pool
+            mevs_df (pd.DataFrame): mev transactions history of the pool
+            mevs_alter_axis (bool, optional): is it required to make two Y-axis, 
+                                              one for swaps count and other for MEV 
+                                              transactions count. Defaults to False.
+            width (int, optional): width of figure. Defaults to 15.
+            height (int, optional): height of figure. Defaults to 7.
+        """
         if not mevs_alter_axis:
             fig, ax = plt.subplots(figsize=(width, height))
             daily_mevs_df = mevs_df['timestamp'].dt.floor('d').value_counts().rename_axis('date').reset_index(name='count')
@@ -817,6 +820,14 @@ class Simulation:
             
             
     def show_mevs_to_swaps_ratio(self, swaps_df: pd.DataFrame, mevs_df: pd.DataFrame, width: int=10, height: int=5):
+        """show mevs to swaps ratio distribution
+
+        Args:
+            swaps_df (pd.DataFrame): swaps history dataframe
+            mevs_df (pd.DataFrame): mev transactions history dataframe
+            width (int, optional): figure width. Defaults to 10.
+            height (int, optional): figure height. Defaults to 5.
+        """
         fig, ax = plt.subplots(figsize=(10, 10))
         ax2 = ax.twinx()
 
@@ -840,12 +851,84 @@ class Simulation:
 
         fig.autofmt_xdate(rotation=25)
         plt.show()
+        
+        
+    def show_mevs_to_reserves_ratio(self, swaps_mitigation_off_df: pd.DataFrame, mevs_df: pd.DataFrame, width: int=10, height: int=10):
+        """show ratio of mev transactions count to pool reserves
+
+        Args:
+            swaps_mitigation_off_df (pd.DataFrame): swaps history with disabled mitigation
+            mevs_df (pd.DataFrame): mev transactions history
+            width (int, optional): width of the figure. Defaults to 10.
+            height (int, optional): height of the figure. Defaults to 10.
+        """
+        daily_mevs_count_df = mevs_df['timestamp'].dt.floor('d').value_counts().rename_axis('date').reset_index(name='mevs count')
+        daily_reserves_avg_df = swaps_mitigation_off_df.groupby(swaps_mitigation_off_df['transaction_timestamp'].dt.floor('d')).mean()
+        daily_reserves_avg_df = daily_reserves_avg_df.rename_axis('date')
+        daily_mevs_count_and_reserves_avg_df = pd.merge(daily_mevs_count_df, daily_reserves_avg_df[['reserve_X', 'reserve_Y']], on='date')
+        daily_mevs_count_and_reserves_avg_df = daily_mevs_count_and_reserves_avg_df.sort_values(by='date')
+
+        fig, ax = plt.subplots(figsize=(15, 10))
+        ax2 = ax.twinx()
+
+        ax.plot(daily_mevs_count_and_reserves_avg_df.date, 
+                daily_mevs_count_and_reserves_avg_df['mevs count']/daily_mevs_count_and_reserves_avg_df.reserve_X, 
+                linestyle='--', color='r', label='MEV transactions count ratio to X reserve')
+        ax2.plot(daily_mevs_count_and_reserves_avg_df.date, 
+                daily_mevs_count_and_reserves_avg_df['mevs count']/daily_mevs_count_and_reserves_avg_df.reserve_Y, 
+                linestyle='-', color='b', label='MEV transactions count ratio to Y reserve')
+
+        ax.grid(True, linestyle='--')
+        ax.set_xlabel('Time')
+        ax.set_ylabel('MEV transactions count ratio to X reserve')
+        ax2.set_ylabel('MEV transactinos count ratio to Y reserve')
+        ax.set_title(f'MEV transactions count ratio to reserves in the {self.x_name}/{self.y_name}')
+
+        fig.autofmt_xdate(rotation=25)
+        fig.legend()
+
+        plt.show()
+        
+        
+    def show_mevs_values_to_reserves_ratio(self, swaps_mitigation_off_df: pd.DataFrame, mevs_df: pd.DataFrame, width: int=10, height: int=10):
+        """show ratio of mev transactions count to pool reserves
+
+        Args:
+            swaps_mitigation_off_df (pd.DataFrame): swaps history with disabled mitigation
+            mevs_df (pd.DataFrame): mev transactions history
+            width (int, optional): width of the figure. Defaults to 10.
+            height (int, optional): height of the figure. Defaults to 10.
+        """
+        daily_mevs_amount_usd_avg_df = mevs_df.groupby(mevs_df['timestamp'].dt.floor('d'))['amount_usd'].mean()
+        daily_mevs_amount_usd_avg_df = daily_mevs_amount_usd_avg_df.rename_axis('date').reset_index(name='amount_usd_avg')
+        daily_reserves_avg_df = swaps_mitigation_off_df.groupby(swaps_mitigation_off_df['transaction_timestamp'].dt.floor('d')).mean()
+        daily_reserves_avg_df = daily_reserves_avg_df.rename_axis('date')
+        daily_mevs_count_and_reserves_avg_df = pd.merge(daily_mevs_amount_usd_avg_df, daily_reserves_avg_df[['reserve_X', 'reserve_Y']], on='date')
+        daily_mevs_count_and_reserves_avg_df = daily_mevs_count_and_reserves_avg_df.sort_values(by='date')
+
+        fig, ax = plt.subplots(figsize=(15, 10))
+        ax2 = ax.twinx()
+
+        ax.plot(daily_mevs_count_and_reserves_avg_df.date, 
+                daily_mevs_count_and_reserves_avg_df['amount_usd_avg']/daily_mevs_count_and_reserves_avg_df.reserve_X, 
+                linestyle='--', color='r', label='MEV transactions avg values ratio to X reserve')
+        ax2.plot(daily_mevs_count_and_reserves_avg_df.date, 
+                daily_mevs_count_and_reserves_avg_df['amount_usd_avg']/daily_mevs_count_and_reserves_avg_df.reserve_Y, 
+                linestyle='-', color='b', label='MEV transactions avg values ratio to Y reserve')
+
+        ax.grid(True, linestyle='--')
+        ax.set_xlabel('Time')
+        ax.set_ylabel('MEV transactions avg USD values ratio to X reserve')
+        ax2.set_ylabel('MEV transactinos avg USD values ratio to Y reserve')
+        ax.set_title(f'MEV transactions avg USD values ratio to reserves in the {self.x_name}/{self.y_name}')
+
+        fig.autofmt_xdate(rotation=25)
+        fig.legend()
+
+        plt.show()
     
     
     def get_original_swaps_df(self) -> pd.DataFrame:
-        """get original swaps history dataframe
-
-        Returns:
-            pd.DataFrame: swaps dataframe
-        """
         return pd.read_pickle(fr'{os.getcwd()}\data\pair_history\{self.x_name}_{self.y_name}\{self.x_name.lower()}_{self.y_name.lower()}_swaps.pkl')
+    
+    

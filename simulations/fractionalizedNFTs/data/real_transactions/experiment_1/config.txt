@@ -1,1 +1,1 @@
-c:\workspace\data-science\simulations\fractionalizedNFTs/data/real_transactions/experiment_1
+C:\workspace\data-science\simulations\fractionalizedNFTs/data/real_transactions/experiment_1
