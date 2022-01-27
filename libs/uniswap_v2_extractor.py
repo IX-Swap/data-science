@@ -171,6 +171,208 @@ def list_to_transaction_dictionary(transaction: list) -> dict:
         'txd': txd
     }
     
+    
+def get_pool_v2_with_gas_history(contract_id: str, range_limit: int=100) -> list:
+    """get transaction history with gas price at moment and amount of gas spent
+    Args:
+        contract_id (str): hash-sum of required contract
+        range_limit (int, optional): how many data fragments required (one fragment has 1000 records). Defaults to 100.
+    Returns:
+        list: list of transactions history, where each transaction is an inner array
+    """
+    sample_transport = RequestsHTTPTransport(url = 'https://api.thegraph.com/subgraphs/name/benesjan/uniswap-v2',
+                                            verify=True, retries=3)
+
+    all_swaps = []
+    last_timestamp = 0
+    client = Client(transport=sample_transport)
+
+    for skip in tqdm(range(0, range_limit)):
+        try:
+            query = gql(
+            'query {\n'
+                f'swaps(first: 1000, where: {{ pair: "{contract_id}", timestamp_gt: {last_timestamp} }} orderBy: timestamp, orderDirection: asc) {{\n'
+                'transaction {\n'
+                    'id\n'
+                    'timestamp\n'
+                    'gasUsed\n'
+                    'gasPrice\n'
+                '}\n'
+                'id\n'
+                'pair {\n'
+                    'token0 {\n'
+                    'id\n'
+                    'symbol\n'
+                    '}\n'
+                    'token1 {\n'
+                    'id\n'
+                    'symbol\n'
+                    '}\n'
+                '}\n'
+                'amount0In\n'
+                'amount0Out\n'
+                'amount1In\n'
+                'amount1Out\n'
+                'amountUSD\n'
+                'sender\n'
+                'to\n'
+                '}\n'
+            '}\n')
+
+            # get current response, extract from it last timestamp, extend swaps history with
+            # current response
+            response = client.execute(query)
+            last_timestamp = response['swaps'][-1]['transaction']['timestamp']
+            all_swaps.extend(response['swaps'])
+
+        except Exception as e:
+            print(e)
+
+    return all_swaps
+
+
+def get_pool_v2_with_gas_history_light(contract_id: str, range_limit: int=100) -> list:
+    """get transaction ID, timestamp and gas info
+    Args:
+        contract_id (str): hash-sum of required contract
+        range_limit (int, optional): how many data fragments required (one fragment has 1000 records). Defaults to 100.
+    Returns:
+        list: list of transactions history, where each transaction is an inner array
+    """
+    sample_transport = RequestsHTTPTransport(url = 'https://api.thegraph.com/subgraphs/name/benesjan/uniswap-v2',
+                                            verify=True, retries=3)
+
+    all_swaps = []
+    last_timestamp = 0
+    client = Client(transport=sample_transport)
+
+    for skip in tqdm(range(0, range_limit)):
+        try:
+            query = gql(
+            'query {\n'
+                f'swaps(first: 1000, where: {{ pair: "{contract_id}", timestamp_gt: {last_timestamp} }} orderBy: timestamp, orderDirection: asc) {{\n'
+                'transaction {\n'
+                    'id\n'
+                    'timestamp\n'
+                    'gasUsed\n'
+                    'gasPrice\n'
+                '}\n'
+                '}\n'
+            '}\n')
+
+            # get current response, extract from it last timestamp, extend swaps history with
+            # current response
+            response = client.execute(query)
+            last_timestamp = response['swaps'][-1]['transaction']['timestamp']
+            all_swaps.extend(response['swaps'])
+
+        except Exception as e:
+            print(e)
+
+    return all_swaps
+
+
+def list_to_transaction_dictionary_with_gas_light(transaction: list) -> dict:
+    """transform transaction gas related info into dictionary
+    Args:
+        transaction (list): one transaction data in array format
+    Returns:
+        dict: dictionary of one transaction record data
+    """
+    timestamp = transaction['transaction']['timestamp']
+    txd = transaction['transaction']['id']
+    gas_price = transaction['transaction']['gasPrice']
+    gas_used = transaction['transaction']['gasUsed']
+    
+    return {
+        'timestamp': timestamp,
+        'txd': txd,
+        'gas_price': gas_price,
+        'gas_used': gas_used
+    }
+    
+    
+def pool_history_v2_with_gas_to_df_light(pool_history: list) -> pd.DataFrame:
+    """transform gas information array into gas info dataframe
+
+    Args:
+        pool_history (list): array of arrays representing transaction history
+
+    Returns:
+        pd.DataFrame: pandas dataframe of transaction history
+    """
+    # transform transactions list of lists into list of dictionaries
+    all_swaps_transformed = [list_to_transaction_dictionary_with_gas_light(swap) for swap in pool_history]
+
+    # make a dataframe from list of dictionaries and fix data type for specific columns
+    swaps_df = pd.DataFrame(all_swaps_transformed)
+    swaps_df.timestamp = pd.to_datetime(swaps_df.timestamp, unit='s')
+
+    return swaps_df
+
+
+def list_to_transaction_dictionary_with_gas(transaction: list) -> dict:
+    """transform transaction data present in array form into dictionary
+    Args:
+        transaction (list): one transaction data in array format
+    Returns:
+        dict: dictionary of one transaction record data
+    """
+    if transaction['amount0In'] != '0':
+        token_in = transaction['pair']['token0']['symbol']
+        token_out = transaction['pair']['token1']['symbol']
+        amount_in = transaction['amount0In']
+        amount_out = transaction['amount1Out']
+    else:
+        token_in = transaction['pair']['token1']['symbol']
+        token_out = transaction['pair']['token0']['symbol']
+        amount_in = transaction['amount1In']
+        amount_out = transaction['amount0Out']
+        
+    amount_usd = transaction['amountUSD']
+    sender = transaction['sender']
+    to = transaction['to']
+    timestamp = transaction['transaction']['timestamp']
+    txd = transaction['transaction']['id']
+    gas_price = transaction['transaction']['gasPrice']
+    gas_used = transaction['transaction']['gasUsed']
+    
+    return {
+        'token_in': token_in,
+        'token_out': token_out,
+        'amount_in': amount_in,
+        'amount_out': amount_out,
+        'amount_usd': amount_usd,
+        'timestamp': timestamp,
+        'sender': sender,
+        'to': to,
+        'txd': txd,
+        'gas_price': gas_price,
+        'gas_used': gas_used
+    }
+    
+
+def pool_history_v2_with_gas_to_df(pool_history: list) -> pd.DataFrame:
+    """transform array of arrays representing transaction history into pandas dataframe
+
+    Args:
+        pool_history (list): array of arrays representing transaction history
+
+    Returns:
+        pd.DataFrame: pandas dataframe of transaction history
+    """
+    # transform transactions list of lists into list of dictionaries
+    all_swaps_transformed = [list_to_transaction_dictionary_with_gas(swap) for swap in pool_history]
+
+    # make a dataframe from list of dictionaries and fix data type for specific columns
+    swaps_df = pd.DataFrame(all_swaps_transformed)
+    swaps_df.timestamp = pd.to_datetime(swaps_df.timestamp, unit='s')
+    swaps_df['amount_in'] = swaps_df['amount_in'].astype('float')
+    swaps_df['amount_out'] = swaps_df['amount_out'].astype('float')
+    swaps_df['amount_usd'] = swaps_df['amount_usd'].astype('float')
+
+    return swaps_df
+    
 
 def get_pool_v2_mints(contract_id: str, range_limit: int) -> list:
     sample_transport = RequestsHTTPTransport(url = 'https://api.thegraph.com/subgraphs/name/uniswap/uniswap-v2',

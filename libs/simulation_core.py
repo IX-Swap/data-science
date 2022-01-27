@@ -932,3 +932,29 @@ class Simulation:
         return pd.read_pickle(fr'{os.getcwd()}\data\pair_history\{self.x_name}_{self.y_name}\{self.x_name.lower()}_{self.y_name.lower()}_swaps.pkl')
     
     
+    def calculate_attack_profit(self, mevs_df: pd.DataFrame) -> pd.DataFrame:
+        """Calculate profit extracted out of performing MEV attack
+
+        Args:
+            mevs_df (pd.DataFrame): MEV transactions dataframe
+
+        Returns:
+            pd.DataFrame: modified dataframe with new column showing profits
+        """
+        grouped_mevs_df = mevs_df.groupby(by='timestamp').amount_usd.agg([lambda x: x.max() - x.min()])
+        grouped_mevs_df = grouped_mevs_df.rename(columns={'<lambda>': 'profit'})
+        return pd.merge(mevs_df, grouped_mevs_df, on="timestamp", how='left')
+    
+    
+    def calculate_attack_profit_by_token(self, mevs_df: pd.DataFrame) -> pd.DataFrame:
+        mevs_df['first_token_value'] = mevs_df.apply(lambda x: x.amount_in if x.token_in < x.token_out else x.amount_out, axis=1)
+        mevs_df['second_token_value'] = mevs_df.apply(lambda x: x.amount_out if x.token_in < x.token_out else x.amount_in, axis=1)
+
+        first_token_grouped_df = mevs_df.groupby(by='timestamp').first_token_value.agg([lambda x: x.max() - x.min()])
+        second_token_grouped_df = mevs_df.groupby(by='timestamp').second_token_value.agg([lambda x: x.max() - x.min()])
+
+        grouped_mevs_df = pd.merge(mevs_df, first_token_grouped_df, on="timestamp", how='left')
+        grouped_mevs_df = grouped_mevs_df.rename(columns={'<lambda>': str(str(grouped_mevs_df.iloc[0].token_in if grouped_mevs_df.iloc[0].token_in < grouped_mevs_df.iloc[0].token_out else grouped_mevs_df.iloc[0].token_out) + '_profit')})
+        grouped_mevs_df = pd.merge(grouped_mevs_df, second_token_grouped_df, on="timestamp", how='left')
+        grouped_mevs_df = grouped_mevs_df.rename(columns={'<lambda>': str(str(grouped_mevs_df.iloc[0].token_out if grouped_mevs_df.iloc[0].token_in < grouped_mevs_df.iloc[0].token_out else grouped_mevs_df.iloc[0].token_in) + '_profit')})
+        return grouped_mevs_df
