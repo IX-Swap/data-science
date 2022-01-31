@@ -6,3 +6,5 @@
 *.7zip
 *.rar
 *.7z
+.ipynb_checkpoints
+.__pycache__
