@@ -1,3 +1,4 @@
+from decimal import DivisionByZero
 from enum import Enum
 
 import logging
@@ -34,8 +35,9 @@ class VolatilityMitigator:
         # slice_factor = 100 * amount_out / reserve_out if reserve_out > amount_out else 100
         slice_factor = 100 - 100 * (reserve_out - amount_out) // reserve_out if reserve_out > amount_out else 100
 
-        oracle_amount_out = dsw_oracle.consult(token_in, amount_in, token_out, block_timestamp)
+        oracle_amount_out, price_average = dsw_oracle.consult(token_in, amount_in, token_out, block_timestamp)
         transaction.oracle_amount_out = oracle_amount_out # TODO: move in another place
+        transaction.oracle_price = price_average
 
         if oracle_amount_out == amount_out:
             out_amounts_diff = 0
@@ -43,7 +45,13 @@ class VolatilityMitigator:
             bigger_amount = max(amount_out, oracle_amount_out)
             smaller_amount = min(amount_out, oracle_amount_out)
 
-            out_amounts_diff = 100 * (bigger_amount - smaller_amount) // ((bigger_amount + smaller_amount)//2)
+            # handle case when the sum of both amounts is smaller than 2
+            try:  
+                out_amounts_diff = 100 * (bigger_amount - smaller_amount) // ((bigger_amount + smaller_amount)//2)
+            except ZeroDivisionError as e:
+                logger.warn(e)
+
+                return True
 
         if out_amounts_diff <= 0:
             return False
@@ -56,8 +64,6 @@ class VolatilityMitigator:
         transaction.slice_factor = slice_factor
         transaction.slice_factor_curve = slice_factor_curve
         transaction.out_amounts_diff = out_amounts_diff
-      #  if out_amounts_diff > 100 - slice_factor_curve:
-      #      logger.warn("TWAPBasedVIMV1: IL_RISK")
 
         return out_amounts_diff > 100 - slice_factor_curve
 

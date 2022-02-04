@@ -75,16 +75,12 @@ class DSWOracle:
 
         offset_index = 0
 
-        for i in range(len(self.observations)):
-            reference_timestamp = block_timestamp
-            boundary_timestamp = block_timestamp - self.fallback_window_size
+        for i in range(0, len(self.observations)):
+            timestamp = self.observations[i].timestamp
 
-            for i in range(0, len(self.observations)):
-                timestamp = self.observations[i].timestamp
-
-                if timestamp >= boundary_timestamp and timestamp < reference_timestamp:
-                    reference_timestamp = timestamp
-                    offset_index = i+1
+            if timestamp >= boundary_timestamp and timestamp < reference_timestamp:
+                reference_timestamp = timestamp
+                offset_index = i+1
 
         return offset_index
 
@@ -117,8 +113,8 @@ class DSWOracle:
     def compute_amount_out(self, price_comulative_start: int, price_comulative_end: int, time_elapsed: int, amount_in: int):
         price_average = (price_comulative_end - price_comulative_start) // time_elapsed
         amount_out = q_decode_144(price_average * amount_in)
-
-        return amount_out
+        decoded_price_average = q_decode_144(price_average * 1000000000000000000)
+        return amount_out, decoded_price_average
 
 
     def can_consult(self, block_timestamp):
@@ -128,7 +124,7 @@ class DSWOracle:
         first_observation = self.get_first_observation_in_window(block_timestamp)
 
         time_elapsed = block_timestamp - first_observation.timestamp
-        logger.info(f'{time_elapsed}, {self.window_size}, {block_timestamp}, {first_observation.timestamp}')
+       # logger.info(f'{time_elapsed}, {self.window_size}, {block_timestamp}, {first_observation.timestamp}')
 
         return time_elapsed <= self.window_size or self.has_fallback_observation(block_timestamp)
 

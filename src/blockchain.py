@@ -40,9 +40,7 @@ class BlockChain:
     def create_block(self):
         self.block_transactions = self.pending_transactions 
         self.pending_transactions = []
-
         
-
         for transaction in self.block_transactions:
             transaction.block_timestamp = self.curr_block_timestamp
             amm.save_pool_state(True, transaction.id)
@@ -69,3 +67,4 @@ _blockchain = BlockChain(BLOCK_TIME)
 receive_transaction = _blockchain.receive_transaction
 update = _blockchain.update
 reset_state = _blockchain.reset_state
+force_finish = _blockchain.force_finish

@@ -1,13 +1,14 @@
+import logging
 from typing import List
-import weakref
-
 import pandas as pd
-
-from monte_carlo2 import Transaction
+from monte_carlo import Transaction
 from enum import Enum
 import dsw_oracle
 from volatility_mitigation import VolatilityMitigatorCheckStatus
 from big_numbers import expand_to_18_decimals
+
+
+logger = logging.getLogger(__name__)
 
 
 class TransactionStatus(Enum):
@@ -57,6 +58,7 @@ class SwapTransaction(Transaction):
         self.gas_fee = expand_to_18_decimals(150)
         self.additional = None
         self.oracle_amount_out = None
+        self.oracle_price = None
         self.slice_factor = None
         self.slice_factor_curve = None
         self.out_amounts_diff = None
@@ -137,14 +139,13 @@ class SwapTransaction(Transaction):
             assert reserve_out_final > 0, 'Invalid reserve_out_final X'
 
         self.amm.update_pair(block_timestamp)
-
-        # todo: move in mitigator class
+        
         if self.amm.is_volatility_mitigator_on == False:
             self.mitigator_check_status = VolatilityMitigatorCheckStatus.MITIGATOR_OFF
             block_transaction = False
         else:
             block_transaction = self.amm.volatility_mitigator.mitigate(self.token_in, self.token_out, self.token_in_amount, amount_out, reserve_out_final, block_timestamp, self)
-            dsw_oracle.update(block_timestamp) # before?
+            dsw_oracle.update(block_timestamp)
 
         if block_transaction:
             return TransactionStatus.BLOCKED_BY_VOLATILITY_MITIGATION
@@ -166,13 +167,15 @@ class SwapTransaction(Transaction):
 
     @staticmethod
     def to_list_header():
-        return ['id', 'token_in', 'token_out', 'token_in_amount', 'token_out_amount_min', 'token_out_amount' , 'system_fee', 'mitigator_check_status', 'oracle_amount_out', 'out_amount_diff', 'slice_factor', 'slice_factor_curve', 'status', 'block_number', 'block_timestamp', 'transaction_timestamp', 'txd', 'sender', 'to']
+        return ['id', 'token_in', 'token_out', 'token_in_amount', 'token_out_amount_min', 'token_out_amount' , 'system_fee', 'mitigator_check_status', 'oracle_amount_out', 'oracle_price', 'out_amount_diff', 'slice_factor', 'slice_factor_curve', 'status', 'block_number', 'block_timestamp', 'transaction_timestamp', 'txd', 'sender', 'to']
 
     def to_list(self):
-        return [self.id, self.token_in, self.token_out, self.token_in_amount, self.amount_out_min, self.token_out_amount, self.system_fee, self.mitigator_check_status.name, self.oracle_amount_out, self.out_amounts_diff, self.slice_factor, self.slice_factor_curve, self.status.name, self.block_number, self.block_timestamp, self.timestamp, self.txd, self.sender, self.to]
+        return [self.id, self.token_in, self.token_out, self.token_in_amount, self.amount_out_min, self.token_out_amount, self.system_fee, self.mitigator_check_status.name, self.oracle_amount_out, self.oracle_price, self.out_amounts_diff, self.slice_factor, self.slice_factor_curve, self.status.name, self.block_number, self.block_timestamp, self.timestamp, self.txd, self.sender, self.to]
 
     @staticmethod
     def save_all(filename):
+        logger.info("Saving swaps... Total count: " + str(len(SwapTransaction.instances)))
+
         transaction_history_list:List[SwapTransaction] = []
         # append all new records to the dataframe
         for transaction in SwapTransaction.instances:
@@ -203,6 +206,8 @@ class BurnTransaction(Transaction):
 
 
     def try_execute(self, block_timestamp, block_number):
+        self.amm.update_pair(block_timestamp)
+
         if self.amm.reserve_X < self.X_amount or self.amm.reserve_Y < self.Y_amount:
             MIN_LIQUIDITY = 1000000
             self.X_amount = min(self.amm.reserve_X - MIN_LIQUIDITY, self.X_amount)
@@ -261,6 +266,8 @@ class MintTransaction(Transaction):
         self.status = self.try_execute(block_timestamp, block_number)
 
     def try_execute(self, block_timestamp, block_number):
+        self.amm.update_pair(block_timestamp)
+
         self.amm.update_reserve_X(self.X_amount)
         self.amm.update_reserve_Y(self.Y_amount)
 
@@ -279,8 +286,9 @@ class MintTransaction(Transaction):
 
     @staticmethod
     def save_all(filename):
+        logger.info("Saving mints... Total count: " + str(len(MintTransaction.instances)))
+
         transaction_history_list:List[MintTransaction] = []
-        print("mints: ", len( MintTransaction.instances))
         # append all new records to the dataframe
         for transaction in MintTransaction.instances:
             transaction_history_list.append(transaction.to_list())
