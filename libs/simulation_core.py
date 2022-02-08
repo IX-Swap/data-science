@@ -932,6 +932,16 @@ class Simulation:
         return pd.read_pickle(fr'{os.getcwd()}\data\pair_history\{self.x_name}_{self.y_name}\{self.x_name.lower()}_{self.y_name.lower()}_swaps.pkl')
     
     
+    def get_reserves_df(self) -> pd.DataFrame:
+        return pd.read_pickle(fr'{os.getcwd()}\data\pair_history\{self.x_name}_{self.y_name}\{self.x_name.lower()}_{self.y_name.lower()}_reserves.pkl')
+    
+    
+    def get_daily_token_price(self, first_to_second: bool, token_name: str) -> pd.DataFrame:
+        reserves_df = pd.read_pickle(fr'{os.getcwd()}\data\pair_history\{self.x_name}_{self.y_name}\{self.x_name.lower()}_{self.y_name.lower()}_reserves.pkl')
+        reserves_df[token_name + '_price'] = reserves_df.apply(lambda x: x.reserve0 / x.reserve1, axis=1) if first_to_second else reserves_df.apply(lambda x: x.reserve1 / x.reserve0, axis=1)
+        return reserves_df[['date', token_name + '_price']]
+    
+    
     def calculate_attack_profit(self, mevs_df: pd.DataFrame) -> pd.DataFrame:
         """Calculate profit extracted out of performing MEV attack
 
