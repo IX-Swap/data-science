@@ -1,3 +1,4 @@
+import re
 import pandas as pd
 from big_numbers import contract_18_decimals_to_float, expand_to_18_decimals
 from safe_math import q_decode_144
@@ -79,3 +80,65 @@ def get_reserve_range_index(stablecoin_reserve):
 def save_dict(path, dict):
     with open(path, 'w') as f:
         json.dump(dict, f)
+
+
+def parse_dynamic_config(filename):
+    initial_params = {
+        'X': {
+            'freq': None
+        },
+        'Y': {
+            'freq': None
+        }
+    }
+
+    actions = []
+
+    with open(filename, 'r') as f:
+        lines = f.readlines()
+
+        tokens0 = lines[0].split()
+        tokens1 = lines[1].split()
+
+        assert tokens0[0] == 'ASSIGN'
+        assert tokens0[1] == 'X'
+        assert tokens0[2] == 'freq'
+
+        assert tokens1[0] == 'ASSIGN'
+        assert tokens1[1] == 'Y'
+        assert tokens1[2] == 'freq'
+
+        hourly_freq_X = tokens0[3]
+        hourly_freq_Y = tokens1[3]
+
+        initial_params['X']['freq'] = float(hourly_freq_X) / 60 
+        initial_params['Y']['freq'] = float(hourly_freq_Y) / 60
+
+        for line in lines[2:]:
+            tokens = line.split()
+
+            command = tokens[0]
+
+            if command == 'PASS':
+                interval, unit = re.findall(r'[A-Za-z]+|\d+', tokens[1])
+                interval = float(interval)
+
+                assert unit == 'h'
+
+                actions.append((command, int(interval*60))) # convert to minutes
+
+            elif command == 'INC' or command == 'DEC':
+                token = tokens[1]
+                param = tokens[2]
+                value = float(tokens[3]) / 60 # convert to min frequency
+
+                actions.append((command, token, param, value))
+            elif command == 'NORMALIZE':
+                token, param = tokens[1], tokens[2]
+
+                actions.append((command, token, param))
+
+    print("Initial params:\n", initial_params)
+    print("Actions:\n", actions)
+
+    return initial_params, actions
