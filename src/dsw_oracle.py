@@ -145,7 +145,7 @@ class DSWOracle:
 
         # should never happen, assert
         assert time_elapsed <= _window_size, 'SlidingWindowOracle: MISSING_HISTORICAL_OBSERVATION, can`t consult'
-        assert time_elapsed >= _window_size - self.period_size * 2 or _window_size == self.fallback_window_size, 'Unexpected TIME_ELAPSED'
+        assert time_elapsed >= _window_size - self.period_size * 2 or _window_size == self.fallback_window_size, f'Unexpected TIME_ELAPSED = {time_elapsed}, min allowed: {_window_size - self.period_size * 2}'
 
         price_X_cumulative, price_Y_cumulative = amm.current_cumulative_prices(block_timestamp)
 

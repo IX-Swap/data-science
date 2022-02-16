@@ -19,17 +19,17 @@ class BlockChain:
         if self.curr_block_timestamp is None:
             self.curr_block_timestamp = swap_transaction.timestamp
 
-        while swap_transaction.timestamp > self.curr_block_timestamp:
+        while swap_transaction.timestamp > self.curr_block_timestamp: # todo: replace with blockchain.update call outside
             self.create_block()
 
         self.pending_transactions.append(swap_transaction)
-
+        
 
     def update(self, next_transaction_timestamp: int):
         if self.curr_block_timestamp is None:
             return
 
-        while next_transaction_timestamp > self.curr_block_timestamp + self.avg_block_time:
+        while next_transaction_timestamp > self.curr_block_timestamp:
             self.create_block()
 
 

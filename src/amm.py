@@ -1,3 +1,4 @@
+from numpy import block
 import pandas as pd
 
 import logging
@@ -67,9 +68,13 @@ class AMM:
 
     
     def current_cumulative_prices(self, current_block_timestamp: int):
+        self.price_X_cumulative_last_saved = self.price_X_cumulative_last
+        self.price_Y_cumulative_last_saved = self.price_Y_cumulative_last
+        self.block_timestamp_last_saved = self.block_timestamp_last
+
         if self.block_timestamp_last != current_block_timestamp:
             time_elapsed = current_block_timestamp - self.block_timestamp_last
-            
+
             self.price_X_cumulative_last += q_div(q_encode(self.reserve_Y), self.reserve_X) * time_elapsed
             self.price_Y_cumulative_last += q_div(q_encode(self.reserve_X), self.reserve_Y) * time_elapsed
 
@@ -78,19 +83,28 @@ class AMM:
         return self.price_X_cumulative_last, self.price_Y_cumulative_last
 
 
-    def swap(self, id, transaction):
-        swap_transaction = SwapTransaction(transaction, self, id)
+    def reverse_state(self):
+        self.price_X_cumulative_last = self.price_X_cumulative_last_saved
+        self.price_Y_cumulative_last = self.price_Y_cumulative_last_saved
+        self.block_timestamp_last = self.block_timestamp_last
         
+
+    def swap(self, id, transaction):
+        blockchain.update(int(transaction.datetime_timestamp.timestamp()))
+        swap_transaction = SwapTransaction(transaction, self, id)
+                
         blockchain.receive_transaction(swap_transaction)
 
     
     def mint(self, amount_X, amount_Y, timestamp, id):
+        blockchain.update(int(timestamp.timestamp()))
         mint_transaction = MintTransaction(amount_X, amount_Y, timestamp, self, id)
 
         blockchain.receive_transaction(mint_transaction)
 
 
     def burn(self, amount_X, amount_Y, timestamp, id):
+        blockchain.update(int(timestamp.timestamp()))
         burn_transaction = BurnTransaction(amount_X, amount_Y, timestamp, self, id)
 
         blockchain.receive_transaction(burn_transaction)
@@ -142,6 +156,10 @@ class AMM:
 
         time_elapsed = block_timestamp - self.block_timestamp_last
 
+        self.price_X_cumulative_last_saved = self.price_X_cumulative_last
+        self.price_Y_cumulative_last_saved = self.price_Y_cumulative_last
+        self.block_timestamp_last_saved = self.block_timestamp_last
+
         if time_elapsed > 0:
             self.price_X_cumulative_last += q_div(q_encode(self.reserve_Y), self.reserve_X) * time_elapsed
             self.price_Y_cumulative_last += q_div(q_encode(self.reserve_X), self.reserve_Y) * time_elapsed
@@ -172,3 +190,4 @@ export_pool_states_to_csv = _amm.export_pool_states_to_csv
 reset = _amm.reset
 mint = _amm.mint
 burn = _amm.burn
+reverse_state = _amm.reverse_state

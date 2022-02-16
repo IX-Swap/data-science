@@ -33,6 +33,7 @@ class Transaction:
         self.id = id
 
         self.block_timestamp = None
+        self.timestamp = None
         self.block_number = None
         self.status = TransactionStatus.PENDING
 
@@ -93,6 +94,64 @@ class SwapTransaction(Transaction):
         self.status = self.try_execute(block_timestamp, block_number)
 
 
+    def check_execute_status(self, block_timestamp):
+        reserve_in, reserve_out = self.get_reserves()
+        amount_out = self.token_out_amount = self.get_amount_out(self.token_in_amount, reserve_in, reserve_out) # amount calculated based on current reserves (from amount_in - 1%)
+        
+        if amount_out >= reserve_out:
+            return TransactionStatus.NOT_ENOUGH_RESERVES
+
+        if amount_out < self.amount_out_min:
+            return TransactionStatus.EXCEEDED_MAX_SLIPPAGE
+
+        balance_in = reserve_in + self.token_in_amount
+        balance_out = reserve_out - amount_out
+
+        balance_in_adjusted = balance_in * 1000 - self.token_in_amount * 10
+        balance_out_adjusted = balance_out * 1000 # todo: refactor
+
+        if self.amm.k_last * 1000 * 1000 > balance_in_adjusted * balance_out_adjusted: # todo:remove one * 1000 from out
+            return TransactionStatus.K_ERROR
+    
+        if self.token_in == self.amm.X:
+            # in case in token0 is a SEC, take the 0.4% of token1 out and leave whole 1% of retained token0 fee in in the pool
+            system_fee = amount_out * 4 // 1000
+        else:
+            # otherwise take the 40% out of 1% retained token0 fee leaving in the pool remaining 60% of the fee (0.6% in total)
+            system_fee = self.token_in_amount * 4 // 1000
+
+        # check if there are enough reserve to perform the swap
+        if self.token_in == self.amm.X:
+            if self.amm.reserve_Y <= amount_out + system_fee:
+                return TransactionStatus.NOT_ENOUGH_RESERVES
+        else:
+            if self.amm.reserve_X <= amount_out or self.amm.reserve_Y + self.token_in_amount <= system_fee: # Note: second check is redundant
+                return TransactionStatus.NOT_ENOUGH_RESERVES
+            
+        # compute the final out_reserve
+        if self.token_in == self.amm.X:
+            reserve_out_final = self.amm.reserve_Y - amount_out - system_fee
+            assert reserve_out_final > 0, 'Invalid reserve_out_final Y'
+        else:
+            reserve_out_final = self.amm.reserve_X - amount_out 
+            assert reserve_out_final > 0, 'Invalid reserve_out_final X'
+        
+        self.amm.update_pair(block_timestamp)
+
+        
+        if self.amm.is_volatility_mitigator_on == False:
+            self.mitigator_check_status = VolatilityMitigatorCheckStatus.MITIGATOR_OFF
+            block_transaction = False
+        else:
+            block_transaction = self.amm.volatility_mitigator.mitigate(self.token_in, self.token_out, self.token_in_amount, amount_out, reserve_out_final, block_timestamp, self)
+
+        self.amm.reverse_state()
+        if block_transaction:
+            return TransactionStatus.BLOCKED_BY_VOLATILITY_MITIGATION
+        
+        return TransactionStatus.SUCCESS
+
+
     def try_execute(self, block_timestamp, block_number):
         self.block_timestamp = block_timestamp
         self.block_number = block_number
@@ -148,6 +207,7 @@ class SwapTransaction(Transaction):
             dsw_oracle.update(block_timestamp)
 
         if block_transaction:
+            self.amm.reverse_state()
             return TransactionStatus.BLOCKED_BY_VOLATILITY_MITIGATION
 
 
