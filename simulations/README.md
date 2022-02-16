@@ -4,12 +4,11 @@ The simulations are being conducted using <a href="historical_transactions">hist
 
 ### Historical Transactions
 For each pair, simulations have been conducted with the default amm parameters without and with the volatility mitigation mechanism enabled. After that, 
-a grid_run for distinct parameters has been performed, in order to visualize the pool behaviour and determine the optimal ones (not added yet, requires refactoring).
+a grid_run for distinct parameters has been performed, in order to visualize the pool behaviour and determine the optimal ones (not added yet).
 
-- <a href="historical_transactions/WBTC_DAI">WBTC/DAI</a> (low capitalization pool)
-- WBTC/USDC (medium capitalization pool)
-- ETH/USDC (high capitalization pool)
-- ... and a lot more to be added after refactoring
+- <a href="historical_transactions/WBTC_DAI">WBTC/DAI</a>
+- <a href="historical_transactions/WBTC_USDC"> WBTC/USDC</a> 
+- <a href="historical_transactions/mAPPLE_UST">mAPPLE/UST</a>
 
 ## Structure
 Each pool has a dedicated folder containing
