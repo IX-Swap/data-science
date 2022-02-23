@@ -42,3 +42,9 @@ pydevd*.log
 nodeLanguageServer/**
 nodeLanguageServer.*/**
 dist/**
+.pkl
+.csv
+.ipynb
+real_v2_pools_stories/**
+simulations/**
+web_scrapper/**
