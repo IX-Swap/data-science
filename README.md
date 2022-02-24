@@ -173,6 +173,28 @@ where the *generated value* is representing the original Cauchy generated value,
 return value / ((value // self.limit) + 1)
 ```
 
+### Gamma distribution generator
+
+Gamma distribution is represents two-parametric distribution which is used in describing system degradation, obsolescence and failure. Distribution is controlled via changing lambda and alpha parameters. Distribution is described by the next formula:
+
+![Gamma distribution formula](formulas_images/gamma_distribution_formula.jpg)
+
+Distribution looks like exponential one and change of values cause next distribution of values:
+
+![Gamma distribution chart](distributions_images/gamma_distribution_chart.png)
+
+Considering that most of the transactions are performed with lower values and their distribution looks like exponential one, this distribution may be used for performing trades generation and it is possible that it will perform great in solving simulation problems
+
+### WeiBull distribution generator
+
+Concept behind Weibull distribution is similar to the case of Gamma function and describes failure rate considering wearout and burning failures. From the first look this concept does not look like applicable for the current simulations, but it is important to mention that it performs as an exponential function similar to gamma one, but more changeable and adaptive to changed parameters. Weibull is controlled via scale and shape parameters. Correct use of those parameters is able to make distribution similar to the transaction values probability density function.
+
+![Weibull distribution formula](formulas_images/weibull_distribution_formula.jpg)
+
+Distributions look similar to reviewed transaction values distributions and tuneability of this distribution is relatively easy.
+
+![Weibull distribution chart](distributions_images/weibull_distribution_chart.png)
+
 ### Monte Carlo transaction simulator
 
 There are four different approaches to generating transaction values and it is needed to connect a transaction value generator with a transaction rate generator. For those purposes was created a ```MonteCarloTransactionsSimulator``` which accepts a Poisson distribution as a frequency generator and any of the transaction values generator to generate transaction values.
@@ -404,6 +426,10 @@ Prices of meme tokens and NFT tokens are speculative. They are totally based on 
 ![MEV attacks gas spendings for meme tokens pools](./distributions_images/gas_mev_costs_meme_pools.png)
 
 Attackers demonstrated higher attention to meme and NFT pools. Therefore it is possible to say that they are most vulnerable to the attackers. Interesting moment here is that application of mitigation mechanism will not cause beneficial impact on those pools. The problem is that trades are performed in specific days of price changes more often and mitigation will either cause no effect in case of too small transaction frequency before and after active days or prevent even simple transactions because they are heavily shifting pool prices closer to real-market price distribution that changed heavily.
+
+Review of the addresses involved in MEV attacks demonstrated that there is a group of addresses performing most of the attacks. Activity of those addresses is temporary meaning that their activity after some time of collecing profits stops. Such approach allows attackers to perform attacks using different addresses (maybe combine several MEV bots) and setting list of addresses that should be blocked will not solve the problem (or it will require repetative check of activity with attackers identification). MEV attackers have complex schemes of extracting their profits and it is possible to deal with them only via market regulation.
+
+The most interesting part of their activity is that any person performing honest trades can evade chance of becoming victim of such attack via setting slippage parameter in such a manner, that losses would be minimal, even if attacker will try to extract profit out of it. Raised gas fees for performing trades with higher usage of slippage will greatly reduce activity of those attackers.
 
 # What's next?
 
