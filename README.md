@@ -15,6 +15,8 @@ Current project contains Uniswap V2 pools transaction histories analysis shown i
     * [Log-Normal distribution generator](#log-normal-distribution-generator)
     * [Pareto distribution generator](#pareto-distribution-generator)
     * [Cauchy distribution generator](#cauchy-distribution-generator)
+    * [Gamma distribution generator](#gamma-distribution-generator)
+    * [Weibull distribution generator](#weibull-distribution-generator)
     * [Monte Carlo transaction simulator](#monte-carlo-transaction-simulator)
     * [Simulations with best match to the real life distributions](#simulations-that-have-the-best-match-with-real-life-distributions)
     * [Parameter search algorithms](#parameter-search-algorithms)
@@ -183,7 +185,13 @@ Distribution looks like exponential one and change of values cause next distribu
 
 ![Gamma distribution chart](distributions_images/gamma_distribution_chart.png)
 
-Considering that most of the transactions are performed with lower values and their distribution looks like exponential one, this distribution may be used for performing trades generation and it is possible that it will perform great in solving simulation problems
+Considering that most of the transactions are performed with lower values and their distribution looks like exponential one, this distribution may be used for performing trades generation and it is possible that it will perform great in solving simulation problems.
+
+**Scipy** contains method ```scipy.stats.gamma``` is used for generating values conform gamma distribution. The probability density standardized function is present in form:
+
+![Scipy Gamma distribution formula](formulas_images/scipy_gamma_distribution_formula.png),
+
+where *Г(a)* is a gamma function shown above and takes *a* is shape parameter. *a* equal to integer value reduces to Erlang distribution, where *a = 1* reduces to the exponential function.
 
 ### WeiBull distribution generator
 
@@ -194,6 +202,14 @@ Concept behind Weibull distribution is similar to the case of Gamma function and
 Distributions look similar to reviewed transaction values distributions and tuneability of this distribution is relatively easy.
 
 ![Weibull distribution chart](distributions_images/weibull_distribution_chart.png)
+
+**Numpy** library contains method required for generating values conform WeiBull distribution. ```numpy.random.weibull``` contains several implementations of Weibull distribution with variants of tunening one, two and three parameters of the distribution. This is one of the implementations, **but not the one chosen for this work**.
+
+**Scipy** library contains method ```scipy.stats.weibull_min```. The probability density function in "standardized" form:
+
+![Weibull scipy standardized distribution formula](formulas_images/scipy_weibull_standardized_distribution_formula.png),
+
+where ```loc``` and ```scale``` parameters are changed to manipulate distribution. **This is the chosen method for generating values** and it allows performing distribution generation with shapes similar to the Gamma one, but with longer tails, which considering presence of multiple high values in transactions rises similarity of shape of this distribution with real one.
 
 ### Monte Carlo transaction simulator
 
