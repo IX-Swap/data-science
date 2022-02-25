@@ -449,4 +449,4 @@ The most interesting part of their activity is that any person performing honest
 
 # What's next?
 
-Other interesting moments can be found in the ```pdf``` report present in the project.
+Other interesting moments can be found in the ```ixs_pools_analysis_v2.pdf``` report present in the project. The second version of the document contains work performed until 25 February 2022 and unfinished parts were cut off at this stage, stay up for updates.
