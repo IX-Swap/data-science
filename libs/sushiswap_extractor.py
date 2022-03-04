@@ -3,8 +3,9 @@ from tqdm import tqdm
 from gql import gql, Client
 from gql.transport.requests import RequestsHTTPTransport
 
+SUSHISWAP_GRAPH_ADDRESS = 'https://api.thegraph.com/subgraphs/name/sushiswap/exchange'
 
-def get_pool_reserves_history(contract_id: str, range_limit=2) -> list:
+def get_pool_reserves_history(contract_id: str, range_limit=20000) -> list:
     """get information about reserves updates conform given contract ID from sushiswap V2
 
     Args:
@@ -13,7 +14,7 @@ def get_pool_reserves_history(contract_id: str, range_limit=2) -> list:
     Returns:
         list: array of reserves updates, where each record is inner array
     """
-    sample_transport = RequestsHTTPTransport(url = 'https://api.thegraph.com/subgraphs/name/sushiswap/exchange',
+    sample_transport = RequestsHTTPTransport(url = SUSHISWAP_GRAPH_ADDRESS,
                                             verify=True, retries=3)
     
     client = Client(transport=sample_transport)
@@ -32,12 +33,8 @@ def get_pool_reserves_history(contract_id: str, range_limit=2) -> list:
                    '}\n'
                  ') {\n'
                      'date\n'
-                     'volumeToken0\n'
-                     'volumeToken1\n'
-                     'volumeUSD\n'
-                     'reserveUSD\n'
-                     'reserve0\n'
-                     'reserve1\n'
+                     'volumeToken0\nvolumeToken1\nvolumeUSD\n'
+                     'reserveUSD\nreserve0\nreserve1\n'
                  '}\n'
                 '}\n'
             )
@@ -48,6 +45,7 @@ def get_pool_reserves_history(contract_id: str, range_limit=2) -> list:
 
         except Exception as e:
             print(e)
+            return daily_data
             
     return daily_data
 
@@ -68,26 +66,20 @@ def list_to_reserves_dictionary(daily_reserve: list) -> dict:
     dailyVolumeToken0 = daily_reserve['volumeToken0']
     dailyVolumeToken1 = daily_reserve['volumeToken1']
     date = daily_reserve['date']
-    token0 = daily_reserve['token0']
-    token1 = daily_reserve['token1']
     volumeUSD = daily_reserve['volumeUSD']
     reserveUSD = daily_reserve['reserveUSD']
     
     return {
-        'reserve0': reserve0,
-        'reserve1': reserve1,
+        'reserve0': reserve0, 'reserve1': reserve1,
         'reserveUSD': reserveUSD,
-        'dailyVolumeToken0': dailyVolumeToken0,
-        'dailyVolumeToken1': dailyVolumeToken1,
+        'dailyVolumeToken0': dailyVolumeToken0, 'dailyVolumeToken1': dailyVolumeToken1,
         'date': date,
-        'token0' : token0,
-        'token1' : token1,
         'volumeUSD' :  volumeUSD,
         'reserveUSD' : reserveUSD
     }
 
 
-def get_pool_history(contract_id: str, range_limit: int=100) -> list:
+def get_pool_history(contract_id: str, range_limit: int=20000) -> list:
     """get transaction history for given contract id
     Args:
         contract_id (str): hash-sum of required contract
@@ -95,7 +87,7 @@ def get_pool_history(contract_id: str, range_limit: int=100) -> list:
     Returns:
         list: list of transactions history, where each transaction is an inner array
     """
-    sample_transport = RequestsHTTPTransport(url = 'https://api.thegraph.com/subgraphs/name/sushiswap/exchange',
+    sample_transport = RequestsHTTPTransport(url = SUSHISWAP_GRAPH_ADDRESS,
                                             verify=True, retries=3)
 
     all_swaps = []
@@ -113,22 +105,13 @@ def get_pool_history(contract_id: str, range_limit: int=100) -> list:
                 '}\n'
                 'id\n'
                 'pair {\n'
-                    'token0 {\n'
-                    'id\n'
-                    'symbol\n'
-                    '}\n'
-                    'token1 {\n'
-                    'id\n'
-                    'symbol\n'
-                    '}\n'
+                    'token0 {\nid\nsymbol\n}\n'
+                    'token1 {\nid\nsymbol\n}\n'
                 '}\n'
-                'amount0In\n'
-                'amount0Out\n'
-                'amount1In\n'
-                'amount1Out\n'
+                'amount0In\namount0Out\n'
+                'amount1In\namount1Out\n'
                 'amountUSD\n'
-                'sender\n'
-                'to\n'
+                'sender\nto\n'
                 '}\n'
             '}\n')
 
@@ -139,6 +122,7 @@ def get_pool_history(contract_id: str, range_limit: int=100) -> list:
 
         except Exception as e:
             print(e)
+            return all_swaps
 
     return all_swaps
 
@@ -181,7 +165,7 @@ def list_to_transaction_dictionary(transaction: list) -> dict:
     
 
 def get_pool_mints(contract_id: str, range_limit: int) -> list:
-    sample_transport = RequestsHTTPTransport(url = 'https://api.thegraph.com/subgraphs/name/sushiswap/exchange',
+    sample_transport = RequestsHTTPTransport(url = SUSHISWAP_GRAPH_ADDRESS,
                                             verify=True, retries=3)
 
     client = Client(transport=sample_transport)
@@ -200,15 +184,10 @@ def get_pool_mints(contract_id: str, range_limit: int) -> list:
                 'orderBy: timestamp, \n'
                 'orderDirection: asc\n'
                 ') {\n'
-                'transaction {\n'
-                    'id\n'
-                    'timestamp\n'
-                '}\n'
+                'transaction {\nid\ntimestamp\n}\n'
                 'to\n'
                 'liquidity\n'
-                'amount0\n'
-                'amount1\n'
-                'amountUSD\n'
+                'amount0\namount1\namountUSD\n'
                 '}\n'
                 '}\n'
             )
@@ -219,6 +198,7 @@ def get_pool_mints(contract_id: str, range_limit: int) -> list:
 
         except Exception as e:
             print(e)
+            return all_mints
             
     return all_mints
             
@@ -257,7 +237,7 @@ def get_pool_burns(contract_id: str, range_limit: int) -> list:
     Returns:
         list: array of arrays representing pool burns data
     """
-    sample_transport = RequestsHTTPTransport(url = 'https://api.thegraph.com/subgraphs/name/sushiswap/exchange',
+    sample_transport = RequestsHTTPTransport(url = SUSHISWAP_GRAPH_ADDRESS,
                                             verify=True, retries=3)
 
     client = Client(transport=sample_transport)
@@ -276,15 +256,11 @@ def get_pool_burns(contract_id: str, range_limit: int) -> list:
                 'orderBy: timestamp, \n'
                 'orderDirection: asc\n'
                 ') {\n'
-                'transaction {\n'
-                    'id\n'
-                    'timestamp\n'
+                'transaction {\nid\ntimestamp\n'
                 '}\n'
                 'to\n'
                 'liquidity\n'
-                'amount0\n'
-                'amount1\n'
-                'amountUSD\n'
+                'amount0\namount1\namountUSD\n'
                 '}\n'
                 '}\n'
             )
@@ -295,6 +271,7 @@ def get_pool_burns(contract_id: str, range_limit: int) -> list:
 
         except Exception as e:
             print(e)
+            return all_burns
             
     return all_burns
 
@@ -397,5 +374,4 @@ def filter_swaps(all_swaps):
                                              ((x['amount0Out'] != '0') ^ (x['amount1Out'] != '0')) & 
                                              (not ((x['amount0In'] == '0') & (x['amount0Out'] == '0')))  &  
                                              (not ((x['amount1In'] == '0') & (x['amount1Out'] == '0')))), all_swaps))
-    
     return direct_swaps, other_swaps
