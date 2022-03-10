@@ -10,7 +10,7 @@ from random import randrange
 import pandas as pd
 from scipy.stats import halfcauchy 
 
-warnings.filterwarnings("ignore",category=UserWarning)
+warnings.filterwarnings("ignore", category = UserWarning)
 
 from monte_carlo import CauchyGenerator, PoissonGenerator, NormalGenerator, ParetoGenerator, LognormalGenerator, Transaction, MonteCarloTransactionSimulator, CauchyParameterSearcher, LognormalParameterSearcher
 

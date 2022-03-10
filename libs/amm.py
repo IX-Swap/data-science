@@ -102,7 +102,9 @@ class AMM:
         else:
             list = self.pool_after_swap_list
 
-        list.append([transaction_id, self.reserve_X, self.reserve_Y, self.k_last, self.price_X_cumulative_last, self.price_Y_cumulative_last, self.is_volatility_mitigator_on])
+        list.append([transaction_id, self.reserve_X, self.reserve_Y, self.k_last, 
+                     self.price_X_cumulative_last, self.price_Y_cumulative_last, 
+                     self.is_volatility_mitigator_on])
 
 
 

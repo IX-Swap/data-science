@@ -24,17 +24,12 @@ for record in table[0].findAll("tr", attrs={"class": "BdT Bdc($seperatorColor) B
     else:
         value = int(cells[2].text.replace(",", ""))
     new_row = {
-        'Insider': insider, 
-        'Type': cells[1].text,
-        'Value': value,
-        'Date': cells[3].text,
-        'Shares': int(cells[4].text.replace(",", "")),
-        'Price': float(
-            value /
+        'Insider': insider, 'Type': cells[1].text,
+        'Value': value, 'Date': cells[3].text, 'Shares': int(cells[4].text.replace(",", "")),
+        'Price': float(value /
             float(cells[4].text.replace(",", ""))
         )
     }
     df = df.append(new_row, ignore_index=True)
-
 
 df.to_csv("interesting_transactions.csv")

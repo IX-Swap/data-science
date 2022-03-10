@@ -18,7 +18,9 @@ class VolatilityMitigator:
     def __init__(self, price_tollerance_threshold) -> None:
         self.price_tollerance_threshold = price_tollerance_threshold
 
-    def mitigate(self, token_in: str, token_out: str, amount_in: int, amount_out: int, reserve_out: int, block_timestamp: int, transaction):
+    def mitigate(self, token_in: str, token_out: str, 
+                 amount_in: int, amount_out: int, reserve_out: int, 
+                 block_timestamp: int, transaction):
         if not dsw_oracle.can_consult(block_timestamp):
             transaction.mitigator_check_status = VolatilityMitigatorCheckStatus.CANT_CONSULT_ORACLE
             
@@ -29,7 +31,8 @@ class VolatilityMitigator:
             return self.__mitigate(token_in, token_out, amount_in, amount_out, reserve_out, block_timestamp, transaction)
 
 
-    def __mitigate(self, token_in: str, token_out: str, amount_in:int, amount_out:int, reserve_out:int, block_timestamp: int, transaction):
+    def __mitigate(self, token_in: str, token_out: str, amount_in:int, amount_out:int, 
+                   reserve_out:int, block_timestamp: int, transaction):
         # Which is the % of amount out relative to the remaining reserve of the token after the swap
         # slice_factor = 100 * amount_out / reserve_out if reserve_out > amount_out else 100
         slice_factor = 100 - 100 * (reserve_out - amount_out) // reserve_out if reserve_out > amount_out else 100
@@ -60,8 +63,6 @@ class VolatilityMitigator:
         transaction.slice_factor = slice_factor
         transaction.slice_factor_curve = slice_factor_curve
         transaction.out_amounts_diff = out_amounts_diff
-      #  if out_amounts_diff > 100 - slice_factor_curve:
-      #      logger.warn("TWAPBasedVIMV1: IL_RISK")
 
         return out_amounts_diff > 100 - slice_factor_curve
 

@@ -94,21 +94,20 @@ class Simulation:
                       self.window_size * 60 * 60,
                       self.window_size * 60 * 60 // self.granularity,
                       self.granularity)
-
             cnt = 0
 
             for index, row in tqdm(transactions_df.iterrows()):
                 blockchain.update(row['timestamp'].second)
                 if row['type'] == 'SWAP':
-                    amm.swap(cnt,
-                             Transaction(row['timestamp'], int(row['amount_in']), row['token_in'], row['token_out'],
-                                         100, row['txd'], row['sender'], row['to']))
+                    amm.swap(cnt, Transaction(row['timestamp'], int(row['amount_in']), 
+                                              row['token_in'], row['token_out'], 100, 
+                                              row['txd'], row['sender'], row['to']))
                 elif row['type'] == 'MINT':
-                    amm.mint(int(row[f'amount{self.x_index}']), int(row[f'amount{self.y_index}']), row['timestamp'],
-                             cnt)
+                    amm.mint(int(row[f'amount{self.x_index}']), int(row[f'amount{self.y_index}']), 
+                             row['timestamp'], cnt)
                 elif row['type'] == 'BURN':
-                    amm.burn(int(row[f'amount{self.x_index}']), int(row[f'amount{self.y_index}']), row['timestamp'],
-                             cnt)
+                    amm.burn(int(row[f'amount{self.x_index}']), int(row[f'amount{self.y_index}']), 
+                             row['timestamp'], cnt)
                 cnt += 1
 
             SwapTransaction.save_all(f'{base_experiment_path}/{self.iteration}/swaps.csv')

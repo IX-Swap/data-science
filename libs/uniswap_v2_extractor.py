@@ -32,12 +32,9 @@ def get_pool_v2_reserves_history(contract_id: str) -> list:
                    '}\n'
                  ') {\n'
                      'date\n'
-                     'dailyVolumeToken0\n'
-                     'dailyVolumeToken1\n'
+                     'dailyVolumeToken0\ndailyVolumeToken1\n'
                      'dailyVolumeUSD\n'
-                     'reserveUSD\n'
-                     'reserve0\n'
-                     'reserve1\n'
+                     'reserveUSD\nreserve0\nreserve1\n'
                  '}\n'
                 '}\n'
             )
@@ -69,8 +66,7 @@ def list_to_reserves_dictionary(daily_reserve: list) -> dict:
     date = daily_reserve['date']
     
     return {
-        'reserve0': reserve0,
-        'reserve1': reserve1,
+        'reserve0': reserve0, 'reserve1': reserve1,
         'reserveUSD': reserveUSD,
         'dailyVolumeToken0': dailyVolumeToken0,
         'dailyVolumeToken1': dailyVolumeToken1,
@@ -98,28 +94,16 @@ def get_pool_v2_history(contract_id: str, range_limit: int=100) -> list:
             query = gql(
             'query {\n'
                 f'swaps(first: 1000, where: {{ pair: "{contract_id}", timestamp_gt: {last_timestamp} }} orderBy: timestamp, orderDirection: asc) {{\n'
-                'transaction {\n'
-                    'id\n'
-                    'timestamp\n'
-                '}\n'
+                'transaction {\nid\ntimestamp\n}\n'
                 'id\n'
                 'pair {\n'
-                    'token0 {\n'
-                    'id\n'
-                    'symbol\n'
-                    '}\n'
-                    'token1 {\n'
-                    'id\n'
-                    'symbol\n'
-                    '}\n'
+                    'token0 {\nid\nsymbol\n}\n'
+                    'token1 {\nid\nsymbol\n}\n'
                 '}\n'
-                'amount0In\n'
-                'amount0Out\n'
-                'amount1In\n'
-                'amount1Out\n'
+                'amount0In\namount0Out\n'
+                'amount1In\namount1Out\n'
                 'amountUSD\n'
-                'sender\n'
-                'to\n'
+                'sender\nto\n'
                 '}\n'
             '}\n')
 
@@ -160,15 +144,11 @@ def list_to_transaction_dictionary(transaction: list) -> dict:
     txd = transaction['transaction']['id']
     
     return {
-        'token_in': token_in,
-        'token_out': token_out,
-        'amount_in': amount_in,
-        'amount_out': amount_out,
+        'token_in': token_in, 'token_out': token_out,
+        'amount_in': amount_in, 'amount_out': amount_out,
         'amount_usd': amount_usd,
         'timestamp': timestamp,
-        'sender': sender,
-        'to': to,
-        'txd': txd
+        'sender': sender, 'to': to, 'txd': txd
     }
     
     
@@ -192,30 +172,18 @@ def get_pool_v2_with_gas_history(contract_id: str, range_limit: int=100) -> list
             query = gql(
             'query {\n'
                 f'swaps(first: 1000, where: {{ pair: "{contract_id}", timestamp_gt: {last_timestamp} }} orderBy: timestamp, orderDirection: asc) {{\n'
-                'transaction {\n'
-                    'id\n'
-                    'timestamp\n'
-                    'gasUsed\n'
-                    'gasPrice\n'
+                'transaction {\nid\ntimestamp\n'
+                    'gasUsed\ngasPrice\n'
                 '}\n'
                 'id\n'
                 'pair {\n'
-                    'token0 {\n'
-                    'id\n'
-                    'symbol\n'
-                    '}\n'
-                    'token1 {\n'
-                    'id\n'
-                    'symbol\n'
-                    '}\n'
+                    'token0 {\nid\nsymbol\n}\n'
+                    'token1 {\nid\nsymbol\n}\n'
                 '}\n'
-                'amount0In\n'
-                'amount0Out\n'
-                'amount1In\n'
-                'amount1Out\n'
+                'amount0In\namount0Out\n'
+                'amount1In\namount1Out\n'
                 'amountUSD\n'
-                'sender\n'
-                'to\n'
+                'sender\nto\n'
                 '}\n'
             '}\n')
 
@@ -251,11 +219,8 @@ def get_pool_v2_with_gas_history_light(contract_id: str, range_limit: int=100) -
             query = gql(
             'query {\n'
                 f'swaps(first: 1000, where: {{ pair: "{contract_id}", timestamp_gt: {last_timestamp} }} orderBy: timestamp, orderDirection: asc) {{\n'
-                'transaction {\n'
-                    'id\n'
-                    'timestamp\n'
-                    'gasUsed\n'
-                    'gasPrice\n'
+                'transaction {\nid\ntimestamp\n'
+                    'gasUsed\ngasPrice\n'
                 '}\n'
                 '}\n'
             '}\n')
@@ -285,10 +250,8 @@ def list_to_transaction_dictionary_with_gas_light(transaction: list) -> dict:
     gas_used = transaction['transaction']['gasUsed']
     
     return {
-        'timestamp': timestamp,
-        'txd': txd,
-        'gas_price': gas_price,
-        'gas_used': gas_used
+        'timestamp': timestamp, 'txd': txd,
+        'gas_price': gas_price, 'gas_used': gas_used
     }
     
     
@@ -338,17 +301,12 @@ def list_to_transaction_dictionary_with_gas(transaction: list) -> dict:
     gas_used = transaction['transaction']['gasUsed']
     
     return {
-        'token_in': token_in,
-        'token_out': token_out,
-        'amount_in': amount_in,
-        'amount_out': amount_out,
+        'token_in': token_in, 'token_out': token_out,
+        'amount_in': amount_in, 'amount_out': amount_out,
         'amount_usd': amount_usd,
         'timestamp': timestamp,
-        'sender': sender,
-        'to': to,
-        'txd': txd,
-        'gas_price': gas_price,
-        'gas_used': gas_used
+        'sender': sender, 'to': to, 'txd': txd,
+        'gas_price': gas_price, 'gas_used': gas_used
     }
     
 
@@ -394,15 +352,10 @@ def get_pool_v2_mints(contract_id: str, range_limit: int) -> list:
                 'orderBy: timestamp, \n'
                 'orderDirection: asc\n'
                 ') {\n'
-                'transaction {\n'
-                    'id\n'
-                    'timestamp\n'
-                '}\n'
+                'transaction {\nid\ntimestamp\n}\n'
                 'to\n'
                 'liquidity\n'
-                'amount0\n'
-                'amount1\n'
-                'amountUSD\n'
+                'amount0\namount1\namountUSD\n'
                 '}\n'
                 '}\n'
             )
@@ -433,11 +386,8 @@ def list_to_mints_dictionary(mint: list) -> dict:
     timestamp = mint['transaction']['timestamp']
     
     return {
-        'amount0': amount0,
-        'amount1': amount1,
-        'amountUSD': amountUSD,
-        'liquidity': liquidity,
-        'timestamp': timestamp,
+        'amount0': amount0, 'amount1': amount1, 'amountUSD': amountUSD,
+        'liquidity': liquidity, 'timestamp': timestamp,
     }
 
 
@@ -470,15 +420,10 @@ def get_pool_v2_burns(contract_id: str, range_limit: int) -> list:
                 'orderBy: timestamp, \n'
                 'orderDirection: asc\n'
                 ') {\n'
-                'transaction {\n'
-                    'id\n'
-                    'timestamp\n'
-                '}\n'
+                'transaction {\nid\ntimestamp\n}\n'
                 'to\n'
                 'liquidity\n'
-                'amount0\n'
-                'amount1\n'
-                'amountUSD\n'
+                'amount0\namount1\namountUSD\n'
                 '}\n'
                 '}\n'
             )

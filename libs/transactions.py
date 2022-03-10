@@ -30,7 +30,6 @@ class Transaction:
     def __init__(self, amm, id) -> None:
         self.amm = amm
         self.id = id
-
         self.block_timestamp = None
         self.block_number = None
         self.status = TransactionStatus.PENDING
@@ -96,7 +95,8 @@ class SwapTransaction(Transaction):
         self.block_number = block_number
 
         reserve_in, reserve_out = self.get_reserves()
-        amount_out = self.token_out_amount = self.get_amount_out(self.token_in_amount, reserve_in, reserve_out) # amount calculated based on current reserves (from amount_in - 1%)
+        amount_out = self.token_out_amount = self.get_amount_out(self.token_in_amount, reserve_in, reserve_out) 
+        # amount calculated based on current reserves (from amount_in - 1%)
         
         if amount_out >= reserve_out:
             return TransactionStatus.NOT_ENOUGH_RESERVES
@@ -125,7 +125,8 @@ class SwapTransaction(Transaction):
             if self.amm.reserve_Y <= amount_out + system_fee:
                 return TransactionStatus.NOT_ENOUGH_RESERVES
         else:
-            if self.amm.reserve_X <= amount_out or self.amm.reserve_Y + self.token_in_amount <= system_fee: # Note: second check is redundant
+            # Note: second check is redundant
+            if self.amm.reserve_X <= amount_out or self.amm.reserve_Y + self.token_in_amount <= system_fee:
                 return TransactionStatus.NOT_ENOUGH_RESERVES
             
         # compute the final out_reserve
@@ -143,7 +144,9 @@ class SwapTransaction(Transaction):
             self.mitigator_check_status = VolatilityMitigatorCheckStatus.MITIGATOR_OFF
             block_transaction = False
         else:
-            block_transaction = self.amm.volatility_mitigator.mitigate(self.token_in, self.token_out, self.token_in_amount, amount_out, reserve_out_final, block_timestamp, self)
+            block_transaction = self.amm.volatility_mitigator.mitigate(self.token_in, self.token_out, 
+                                                                       self.token_in_amount, amount_out, 
+                                                                       reserve_out_final, block_timestamp, self)
             dsw_oracle.update(block_timestamp) # before?
 
         if block_transaction:
@@ -166,10 +169,17 @@ class SwapTransaction(Transaction):
 
     @staticmethod
     def to_list_header():
-        return ['id', 'token_in', 'token_out', 'token_in_amount', 'token_out_amount_min', 'token_out_amount' , 'system_fee', 'mitigator_check_status', 'oracle_amount_out', 'out_amount_diff', 'slice_factor', 'slice_factor_curve', 'status', 'block_number', 'block_timestamp', 'transaction_timestamp', 'txd', 'sender', 'to']
+        return ['id', 'token_in', 'token_out', 'token_in_amount', 'token_out_amount_min', 
+                'token_out_amount' , 'system_fee', 'mitigator_check_status', 'oracle_amount_out', 
+                'out_amount_diff', 'slice_factor', 'slice_factor_curve', 'status', 'block_number', 
+                'block_timestamp', 'transaction_timestamp', 'txd', 'sender', 'to']
 
     def to_list(self):
-        return [self.id, self.token_in, self.token_out, self.token_in_amount, self.amount_out_min, self.token_out_amount, self.system_fee, self.mitigator_check_status.name, self.oracle_amount_out, self.out_amounts_diff, self.slice_factor, self.slice_factor_curve, self.status.name, self.block_number, self.block_timestamp, self.timestamp, self.txd, self.sender, self.to]
+        return [self.id, self.token_in, self.token_out, self.token_in_amount, 
+                self.amount_out_min, self.token_out_amount, self.system_fee, self.mitigator_check_status.name, 
+                self.oracle_amount_out, self.out_amounts_diff, self.slice_factor, self.slice_factor_curve, 
+                self.status.name, self.block_number, self.block_timestamp, self.timestamp, self.txd, 
+                self.sender, self.to]
 
     @staticmethod
     def save_all(filename):
@@ -227,10 +237,13 @@ class BurnTransaction(Transaction):
 
     @staticmethod
     def to_list_header():
-        return ['id', 'X_amount', 'Y_amount', 'timestamp', 'status', 'block_number', 'block_timestamp', 'transaction_timestamp']
+        return ['id', 'X_amount', 'Y_amount', 'timestamp', 'status', 
+                'block_number', 'block_timestamp', 'transaction_timestamp']
 
     def to_list(self):
-        return [self.id, self.X_amount, self.Y_amount, self.timestamp, self.status.name, self.block_number, self.block_timestamp, self.timestamp]
+        return [self.id, self.X_amount, self.Y_amount, self.timestamp, 
+                self.status.name, self.block_number, self.block_timestamp, 
+                self.timestamp]
 
 
     @staticmethod
@@ -239,8 +252,7 @@ class BurnTransaction(Transaction):
         for transaction in BurnTransaction.instances:
             transaction_history_list.append(transaction.to_list())
                                                 
-        history_df = pd.DataFrame(transaction_history_list, columns=BurnTransaction.to_list_header()) # todo: refactor (place inside parent class)
-
+        history_df = pd.DataFrame(transaction_history_list, columns=BurnTransaction.to_list_header())
         history_df.to_csv(filename, index=False)
         
 
@@ -263,7 +275,6 @@ class MintTransaction(Transaction):
     def try_execute(self, block_timestamp, block_number):
         self.amm.update_reserve_X(self.X_amount)
         self.amm.update_reserve_Y(self.Y_amount)
-
         self.block_timestamp = block_timestamp
         self.block_number = block_number
         
@@ -271,10 +282,12 @@ class MintTransaction(Transaction):
 
     @staticmethod
     def to_list_header():
-        return ['id', 'X_amount', 'Y_amount', 'timestamp', 'status', 'block_number', 'block_timestamp', 'transaction_timestamp']
+        return ['id', 'X_amount', 'Y_amount', 'timestamp', 'status', 
+                'block_number', 'block_timestamp', 'transaction_timestamp']
 
     def to_list(self):
-        return [self.id, self.X_amount, self.Y_amount, self.timestamp, self.status.name, self.block_number, self.block_timestamp, self.timestamp]
+        return [self.id, self.X_amount, self.Y_amount, self.timestamp, self.status.name, 
+                self.block_number, self.block_timestamp, self.timestamp]
 
 
     @staticmethod
@@ -286,5 +299,4 @@ class MintTransaction(Transaction):
             transaction_history_list.append(transaction.to_list())
                                                 
         history_df = pd.DataFrame(transaction_history_list, columns=MintTransaction.to_list_header())
-
         history_df.to_csv(filename, index=False)
