@@ -29,15 +29,17 @@ This chapter will be described with the next structure:
 
 ## Transaction frequency generator or Poisson generator
 
-The first problem that appeared during implementation of the transaction history simulation was the fact that there is some average transaction frequency per specified time interval, but transaction count per specified time interval is unstable, meaning that different time periods have different amounts of transactions happening. Another moment is that transactions are happening in different positions on the specified time intervals. To solve those problems it was decided to use Poisson distribution generators.
+Trading activity is unstable from the trades frequency perspective. It is possible to find average amount of transactions per specific time interval, set several frequency values that will describe different market situations, but setting only a specified value of transactions per time window will create unbelievable transactions activity. Generated transaction timestamps should form a believable transaction distribution on a timeline, when sometimes transactions are shifted to the beginning of the time window, to the end and etc. Poisson distribution is a great solution of this problem.
 
-Poisson distribution is a discrete probability distribution that expresses the probability of a given number of events happening in fixed time intervals with a constant mean rate and independently from the last event time (it can also be applied to other metrics like distance). The formula for the Poisson Distribution is:
+Poisson distribution is a discrete probability distribution expressing the probability of a given number of events (in our case, transactions) happening in fixed time intervals with a constant mean rate and independently from the last event time. It is possible to change mean value to represent different amount of activity that can be changing due to external factors or market changes. The formula for the Poisson distribution is:
 
 ![Poisson distribution formula](./formulas_images/poisson_distribution.PNG)
 
 where *e* is representing Euler’s number, *x* represents the number of event occurrences, *lambda* is equal to the expected value of *x* also equal to its variance. 
 
-```NumPy``` library contains a ```random``` module with method ```poisson``` which creates values that conform to Poisson distribution based on the transmitted parameters. It generates the amount of transactions that happen during a specific time interval, but it is required to specify transaction timestamps. This moment is solved by applying random timedelta to the given time interval starting timestamp for each transaction separately. 
+```NumPy``` library contains a ```random``` module with method ```poisson``` which creates values that conform to Poisson distribution based on the transmitted parameters. It generates the amount of transactions that happen during a specific time interval, but it is required to specify transaction timestamps. This moment is solved by applying random timedelta to the given time interval starting timestamp for each transaction separately conform the next formula:
+
+![Timestamp generation formula](./formulas_images/timestamp_generation_formula.png)
 
 ## Normal distribution generator
 
@@ -63,6 +65,8 @@ In this formula *ф(x)* represents a probability density function of the "parent
 return truncnorm.rvs((self.lower_bound - self.mu)/self.sigma, (self.upper_bound - self.mu)/self.sigma, loc=self.mu, scale=self.sigma, size=transactions_count)
 ```
 
+The problem behind this distribution is in the approach of the traders to perform their activity. First, most of the trades will be concentrated around small value trades with swaps of small token values, because mostly traders are exchanging their tokens to get required one to perform their operations. Second, some traders are exchanging big values of their capital for extracting profit out of price changes to another token and therefore distribution will have extremely long tails. The last factor influencing the distribution are arbitrages and MEV attacks that require big token movements making distribution tails even bigger.
+
 ## Log-normal distribution generator
 
 Log normal distribution is the probability distribution of a random variable whose logarithm is normally distributed. Conform this distribution generated value x can be described by the formula:
@@ -75,6 +79,8 @@ where *Z* is a standard normal variable, *mu* represents distribution mean and *
 
 ```numpy.random``` module contains ```lognormal``` function used for generating values conforming to Log-Normal probability distribution working by a similar principle as previous methods of sigma and mu parameters.
 
+This distribution is also not demonstrating great match with the real trading picture, but can be used for unique situations.
+
 ## Pareto distribution generator
 	
 Pareto distribution is the power-law probability distribution that is used in description of social, quality control, scientific, and other types of phenomenons. The base principle behind this distribution is the “80 to 20” rule that describes distribution of wealth in society and therefore this distribution should cover better traders' activity simulation tasks. The probability distribution function is:
@@ -86,6 +92,8 @@ where *x_m* is a minimal possible value of *X* (also called as ```scale``` param
 ![Pareto distribution](./distributions_images/pareto_distribution.png)
 
 ```numpy.random``` module has a function called ```pareto``` that is responsible for generating the Pareto distribution.
+
+Pareto has better match with the real distributions. Exponential-like distribution of values demonstrate long tails, shift to the left of the values and have behavior similar to the real trading due to the domains where this distribution is used. The distribution matches the principle of the "80-20 rule" covering social and economical difference between population segments important for this case because most of the traders are represented by people covering this rule.
 
 ## Cauchy distribution generator
 
@@ -110,6 +118,8 @@ where the *generated value* is representing the original Cauchy generated value,
 ```python
 return value / ((value // self.limit) + 1)
 ```
+
+This distribution has one of the best matches to the original distributions because of exponential trading activity distribution and better coverage of the long tails.
 
 ## Gamma distribution generator
 
@@ -147,9 +157,11 @@ Distributions look similar to reviewed transaction values distributions and tune
 
 where ```loc``` and ```scale``` parameters are changed to manipulate distribution. **This is the chosen method for generating values** and it allows performing distribution generation with shapes similar to the Gamma one, but with longer tails, which considering presence of multiple high values in transactions rises similarity of shape of this distribution with real one.
 
+This model shows the best match with the real trading distributions because of the exponential nature of this distribution.
+
 ## Monte Carlo transaction simulator
 
-There are four different approaches to generating transaction values and it is needed to connect a transaction value generator with a transaction rate generator. For those purposes was created a ```MonteCarloTransactionsSimulator``` which accepts a Poisson distribution as a frequency generator and any of the transaction values generator to generate transaction values.
+There are six different approaches to generating transaction values and it is needed to connect a transaction value generator with a transaction rate generator. For those purposes was created a ```MonteCarloTransactionsSimulator``` which accepts a Poisson distribution as a frequency generator and any of the transaction values generator to generate transaction values.
 
 The main requirements to the transaction value generator are to contain a ```generate_transactions``` function accepting last known timestamp forming new object of ```Transaction``` class writing it into the ```transaction_history``` array, and be pre-initialized with all required generation parameters
 
