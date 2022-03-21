@@ -1,103 +1,114 @@
+import os, sys
+sys.path.insert(0, os.getcwd()) 
+
 import logging
-from random import randrange
-import itertools
 import pandas as pd
 import amm
 import os
-import numpy as np
 from datetime import datetime, timedelta
-from monte_carlo_dc import CauchyGenerator, MonteCarloTransactionSimulator, PoissonGenerator, Transaction
+from trading_simulation import MonteCarloTransactionSimulator, PoissonGenerator, Transaction, WeibullGenerator
 import blockchain
 from big_numbers import contract_18_decimals_to_float, expand_to_18_decimals
 from safe_math import q_decode_144
 import settings
+from transactions import SwapTransaction
 
 # old main, required update (using main_historic_transactions.py)
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s:%(name)s:%(message)s', datefmt="%m/%d/%Y %I:%M:%S %p")
 logger = logging.getLogger(__name__)
 
-EXPERIMENT_ID = 38
-X_NAME = 'HKMT'
-Y_NAME = 'USDT'
+EXPERIMENT_ID = 36
 
+X_NAME = 'X'
+Y_NAME = 'Y'
+
+# todo: check ratio
+
+# go together: scale/limit
 def main(): 
-    occurences_per_min_list = [10]
-    initial_reserves_usd_list = [1000, 10000, 100000]
-    ratios_sec_usd_list = [1]
-    cauchy_scale_list = [5000, 10000, 15000]
-    volatility_mitigator_list = [False, True]
-    price_tollerance_threshold_list = [98]
-    window_size_list = [24]
-    granularity_list = [24] #todo: update period
+    OCCURENCES_PER_MIN = 1 / 30
+    INITIAL_RESERVES_USD = 30000
+    INITIAL_SEC_PRICE = 1
 
+    WINDOW_SIZE = 24
+    GRANULARITY = 24
+    PRICE_TOLLERANCE_THRESHOLD = 98
+
+    DEFAULT_SLIPPAGE = 100
+
+    BASE_DIR = f'../data/simulated_transactions/experiment_{EXPERIMENT_ID}'
+    os.makedirs(BASE_DIR)
     
-
-    grid = itertools.product(occurences_per_min_list, initial_reserves_usd_list, ratios_sec_usd_list, cauchy_scale_list, price_tollerance_threshold_list, window_size_list, granularity_list, volatility_mitigator_list)
-
-    os.makedirs(f'data/experiment_{EXPERIMENT_ID}')
-    
-    with open(f'data/experiment_{EXPERIMENT_ID}/config.txt', 'w') as f:
-        f.write('\noccurences_per_min_list: ' + str(occurences_per_min_list))
-        f.write('\ninitial_reserves_usd_list: ' + str(initial_reserves_usd_list))
-        f.write('\nratios_sec_usd_list: ' + str(ratios_sec_usd_list))
-        f.write('\ncauchy_scale_list: ' + str(cauchy_scale_list))
-        f.write('\nvolatility_mitigator_list: ' + str(volatility_mitigator_list))
-        f.write('\nprice_tollerance_threshold_list: ' + str(price_tollerance_threshold_list))
-        f.write('\nwindow_size_list: ' + str(window_size_list))
-        f.write('\ngranularity_list: ' + str(granularity_list))
+    with open(f'{BASE_DIR}/config.txt', 'w') as f:
+        f.write('\noccurences_per_min: ' + str(OCCURENCES_PER_MIN))
+        f.write('\ninitial_reserves_usd: ' + str(INITIAL_RESERVES_USD))
+        f.write('\ninitial_sec_price: ' + str(INITIAL_SEC_PRICE))
+        f.write('\nwindow_size: ' + str(WINDOW_SIZE))
+        f.write('\ngranularity: ' + str(GRANULARITY))
+        f.write('\nprice_tollerance_threshold: ' + str(PRICE_TOLLERANCE_THRESHOLD))
 
 
     start_time = datetime.now()
     iteration = 0
     print("starting...")
-    for mean_occurencies_per_min, initial_reserves_usd, ratios_sec_usd, cauchy_scale, price_tollerance_threshold, window_size, granularity, vm in grid:
-        settings.PRICE_TOLLERANCE_THRESHOLD = price_tollerance_threshold
 
-        os.makedirs(f'data/experiment_{EXPERIMENT_ID}/{iteration}')
-        save_config(f'data/experiment_{EXPERIMENT_ID}/{iteration}/config.txt', mean_occurencies_per_min, initial_reserves_usd, ratios_sec_usd, cauchy_scale, price_tollerance_threshold, window_size, granularity, vm)
+    transactions_history1_path = f'{BASE_DIR}/history1.csv'
+    transactions_history2_path = f'{BASE_DIR}/history2.csv'
+    
+    loc = 0
+    shape = 0.9
+    scale = 1000
 
-        transactions_history1_path = f'data/experiment_{EXPERIMENT_ID}/{iteration}/history1.csv'
-        transactions_history2_path = f'data/experiment_{EXPERIMENT_ID}/{iteration}/history2.csv'
+    simulate_transactions(start_time, OCCURENCES_PER_MIN , X_NAME, Y_NAME, transactions_history1_path, shape, loc, scale)
+    simulate_transactions(start_time, OCCURENCES_PER_MIN, Y_NAME, X_NAME, transactions_history2_path, shape, loc, scale)
 
-        simulate_transactions(start_time, mean_occurencies_per_min, X_NAME, Y_NAME, transactions_history1_path, cauchy_scale, 1)
-        simulate_transactions(start_time, mean_occurencies_per_min, Y_NAME, X_NAME, transactions_history2_path, cauchy_scale, 1)
+    transactions1_df = pd.read_csv(transactions_history1_path)
+    transactions2_df = pd.read_csv(transactions_history2_path)
+    all_transactions = combine_transactions(transactions1_df, transactions2_df)
+    all_transactions['token_in_amount'] = all_transactions['token_in_amount'].apply(expand_to_18_decimals)
+    start_time = all_transactions['datetime_timestamp'].min()
 
-        transactions1_df = pd.read_csv(transactions_history1_path)
-        transactions2_df = pd.read_csv(transactions_history2_path)
 
-        all_transactions = combine_transactions(transactions1_df, transactions2_df)
-        all_transactions['token_in_amount'] = all_transactions['token_in_amount'].apply(expand_to_18_decimals)
+    for vm in [False, True]:
+        os.makedirs(f'{BASE_DIR}/{iteration}')
+        #save_config(f'{BASE_DIR}/{iteration}/config.txt', OCCURENCES_PER_MIN, INITIAL_RESERVES_USD, INITIAL_SEC_PRICE, CAUCHY_SCALE_X, CAUCHY_SCALE_Y, CAUCHY_MAX_LIMIT_X, CAUCHY_MAX_LIMIT_Y, PRICE_TOLLERANCE_THRESHOLD, WINDOW_SIZE, GRANULARITY, vm)
+
+        amm.reset(X_NAME, Y_NAME, INITIAL_RESERVES_USD // INITIAL_SEC_PRICE , INITIAL_RESERVES_USD, vm, WINDOW_SIZE * 60 * 60, WINDOW_SIZE * 60 * 60// GRANULARITY, GRANULARITY) #todo: beautify
 
         cnt = 0
-        amm.reset(X_NAME, Y_NAME, initial_reserves_usd / ratios_sec_usd, initial_reserves_usd, vm)
-
-        start_time = all_transactions['datetime_timestamp'].min()
-
-
-
         for _, row in all_transactions.iterrows():
             amm.reserve_X() / amm.reserve_Y()
             
             if row['datetime_timestamp'] - start_time <= timedelta(days=1):
-                amount = row['token_in_amount'] // 50
+                amount = row['token_in_amount'] // 1000 
             else:
                 amount = row['token_in_amount']
                 
-            amm.swap(cnt, Transaction(row['datetime_timestamp'], amount, row['token_in'], row['token_out'], row['slope']))
+            amm.swap(cnt, Transaction(row['datetime_timestamp'], amount, row['token_in'], row['token_out']), DEFAULT_SLIPPAGE)
             cnt += 1
 
-        blockchain.transaction_to_csv(f'data/experiment_{EXPERIMENT_ID}/{iteration}/blockchain.csv', True)
-        amm.export_pool_states_to_csv(f'data/experiment_{EXPERIMENT_ID}/{iteration}/pool_before_transaction.csv', 
-                                        f'data/experiment_{EXPERIMENT_ID}/{iteration}/pool_after_transaction.csv')
+        SwapTransaction.save_all(f'{BASE_DIR}/{iteration}/swaps.csv')
+        blockchain.reset_state()
+
+        amm.export_pool_states_to_csv(f'{BASE_DIR}/{iteration}/pool_before_transaction.csv', 
+                                        f'{BASE_DIR}/{iteration}/pool_after_transaction.csv')
 
         logger.info("Start normalizing...")
-        normalize_blockchain(f'data/experiment_{EXPERIMENT_ID}/{iteration}/blockchain.csv', f'data/experiment_{EXPERIMENT_ID}/{iteration}/blockchain_normalized.csv')
-        normalize_pool_state(f'data/experiment_{EXPERIMENT_ID}/{iteration}/pool_before_transaction.csv', f'data/experiment_{EXPERIMENT_ID}/{iteration}/pool_before_transaction_normalized.csv')
-        normalize_pool_state(f'data/experiment_{EXPERIMENT_ID}/{iteration}/pool_after_transaction.csv', f'data/experiment_{EXPERIMENT_ID}/{iteration}/pool_after_transaction_normalized.csv')
+        normalize_csv(f'{BASE_DIR}/{iteration}/swaps.csv', ['token_in_amount', 'token_out_amount', 'token_out_amount_min', 'system_fee', 'oracle_amount_out'], f'{BASE_DIR}/{iteration}/swaps_normalized.csv')
+        normalize_pool_state(f'{BASE_DIR}/{iteration}/pool_before_transaction.csv', f'{BASE_DIR}/{iteration}/pool_before_transaction_normalized.csv')
+        normalize_pool_state(f'{BASE_DIR}/{iteration}/pool_after_transaction.csv', f'{BASE_DIR}/{iteration}/pool_after_transaction_normalized.csv')
         logging.info("Finished normalizing")
 
         iteration += 1
+
+def normalize_csv(filename, cols_to_normalize, normalized_filename):
+    df = pd.read_csv(filename)
+
+    for col in cols_to_normalize:
+        df[col] = df[col].apply(contract_18_decimals_to_float)
+    
+    df.to_csv(normalized_filename, index=False)
 
 # todo: separate into func, cols - parameters
 def normalize_blockchain(blockchain_filename, normalized_filename):
@@ -127,12 +138,15 @@ def normalize_pool_state(pool_state_filename, normalized_filename):
 
     pool_state_df.to_csv(normalized_filename)
 
-def save_config(filename, mean_occurencies_per_min, initial_reserves_usd, ratios_sec_usd, cauchy_scale, price_tollerance_threshold, window_size, granularity, vm):
+def save_config(filename, mean_occurencies_per_min, initial_reserves_usd, ratios_sec_usd, cauchy_scale_x, cauchy_scale_y, cauchy_max_limit_x, cauchy_max_limit_y, price_tollerance_threshold, window_size, granularity, vm):
     with open(filename, 'w') as f:
         f.write("mean_occ_per_min: " + str(mean_occurencies_per_min))
         f.write("\ninitial_reserve_usd: " + str(initial_reserves_usd))
         f.write("\nratio_sec_usd: " + str(ratios_sec_usd))
-        f.write("\ncauchy_scale: " + str(cauchy_scale))
+        f.write("\ncauchy_scale_x: " + str(cauchy_scale_x))
+        f.write("\ncauchy_scale_y: " + str(cauchy_scale_y))
+        f.write("\ncauchy_max_limit_x: " + str(cauchy_max_limit_x))
+        f.write("\ncauchy_max_limit_y: " + str(cauchy_max_limit_y))
         f.write("\nprice_tolerance_threshold: " + str(settings.PRICE_TOLLERANCE_THRESHOLD))
         f.write("\nwindow_size: " + str(window_size))
         f.write("\ngranularity: " + str(granularity)) #todo: read from settings
@@ -141,10 +155,10 @@ def save_config(filename, mean_occurencies_per_min, initial_reserves_usd, ratios
 
 
 
-def simulate_transactions(start_time, mean_occurencies_per_min, token0, token1, transaction_history_filename, cauchy_scale, token_in_ratio):
+def simulate_transactions(start_time, mean_occurencies_per_min, token0, token1, transaction_history_filename, shape, loc, scale):
     simulator = MonteCarloTransactionSimulator(
         PoissonGenerator(cycle_size=60000, mean_occurencies=mean_occurencies_per_min), 
-        CauchyGenerator(loc=0, scale=cauchy_scale, limit=3000000), token0, token1,
+        WeibullGenerator(shape=shape, loc=loc, scale=scale), token0, token1,
     )
 
     start_time = datetime.now()
@@ -153,7 +167,7 @@ def simulate_transactions(start_time, mean_occurencies_per_min, token0, token1, 
 
     # total_number_transactions = 50000
     # simulation_seconds_total = int((total_number_transactions + 24*60*mean_occurencies_per_min) / mean_occurencies_per_min) 
-    simulation_seconds_total = 60*24*7
+    simulation_seconds_total = 60*24*50
 
     for _ in range(simulation_seconds_total):
         simulator.generate_transactions(current_iteration_timestamp)

@@ -66,7 +66,7 @@ class DSWOracle:
             observation.price_X_cumulative = price_X_cumulative
             observation.price_Y_cumulative = price_Y_cumulative
 
-            logger.info(f"Inside update, time_elapsed={time_elapsed}, updated observation: {observation}")
+            logger.debug(f"Inside update, time_elapsed={time_elapsed}, updated observation: {observation}")
 
 
     def get_fallback_observation_offset_index(self, block_timestamp):

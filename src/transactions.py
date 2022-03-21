@@ -1,8 +1,8 @@
-import logging
 from typing import List
-import pandas as pd
-from monte_carlo import Transaction
 from enum import Enum
+import pandas as pd
+import logging
+from trading_simulation import Transaction as GenTransaction
 import dsw_oracle
 from volatility_mitigation import VolatilityMitigatorCheckStatus
 from big_numbers import expand_to_18_decimals
@@ -42,7 +42,7 @@ class Transaction:
 class SwapTransaction(Transaction):
     instances = []
 
-    def __init__(self, transaction: Transaction, amm, id) -> None:
+    def __init__(self, transaction: GenTransaction, slippage, amm, id, save_transaction=True) -> None:
         super().__init__(amm, id)
 
         self.timestamp = int(transaction.datetime_timestamp.timestamp())
@@ -50,12 +50,12 @@ class SwapTransaction(Transaction):
         self.token_out = transaction.token_out
         self.token_in_amount = transaction.token_in_amount
         self.token_out_amount = transaction.token_out_amount
-        self.txd = transaction.txd
+        self.txd = id
         self.sender = transaction.sender
         self.to = transaction.to
 
         (reserve_in, reserve_out) = self.get_reserves()
-        self.amount_out_min = self.get_amount_out(self.token_in_amount, reserve_in, reserve_out) * (100 - transaction.slope) // 100
+        self.amount_out_min = self.get_amount_out(self.token_in_amount, reserve_in, reserve_out) * (100 - slippage) // 100
         self.gas_fee = expand_to_18_decimals(150)
         self.additional = None
         self.oracle_amount_out = None
@@ -67,7 +67,12 @@ class SwapTransaction(Transaction):
         self.mitigator_check_status = VolatilityMitigatorCheckStatus.NOT_REACHED
         self.type = TransactionType.SWAP
 
-        self.__class__.instances.append(self)
+        self.sequence_swap_cnt = transaction.sequence_swap_cnt
+        self.attempt_cnt = transaction.attempt_cnt
+        self.desired_token_in_amount = transaction.desired_token_in_amount
+
+        if save_transaction:
+            self.__class__.instances.append(self)
 
     
     def get_amount_out(self, amount_in: int, reserve_in: int, reserve_out: int):
@@ -101,8 +106,8 @@ class SwapTransaction(Transaction):
         if amount_out >= reserve_out:
             return TransactionStatus.NOT_ENOUGH_RESERVES
 
-        if amount_out < self.amount_out_min:
-            return TransactionStatus.EXCEEDED_MAX_SLIPPAGE
+        # if amount_out < self.amount_out_min:
+        #     return TransactionStatus.EXCEEDED_MAX_SLIPPAGE
 
         balance_in = reserve_in + self.token_in_amount
         balance_out = reserve_out - amount_out
@@ -201,14 +206,13 @@ class SwapTransaction(Transaction):
         
         if self.amm.is_volatility_mitigator_on == False:
             self.mitigator_check_status = VolatilityMitigatorCheckStatus.MITIGATOR_OFF
-            block_transaction = False
         else:
             block_transaction = self.amm.volatility_mitigator.mitigate(self.token_in, self.token_out, self.token_in_amount, amount_out, reserve_out_final, block_timestamp, self)
             dsw_oracle.update(block_timestamp)
 
-        if block_transaction:
-            self.amm.reverse_state()
-            return TransactionStatus.BLOCKED_BY_VOLATILITY_MITIGATION
+            if block_transaction:
+                self.amm.reverse_state()
+                return TransactionStatus.BLOCKED_BY_VOLATILITY_MITIGATION
 
 
         # update reserves (perform the swap)
@@ -227,10 +231,10 @@ class SwapTransaction(Transaction):
 
     @staticmethod
     def to_list_header():
-        return ['id', 'token_in', 'token_out', 'token_in_amount', 'token_out_amount_min', 'token_out_amount' , 'system_fee', 'mitigator_check_status', 'oracle_amount_out', 'oracle_price', 'out_amount_diff', 'slice_factor', 'slice_factor_curve', 'status', 'block_number', 'block_timestamp', 'transaction_timestamp', 'txd', 'sender', 'to']
+        return ['id', 'token_in', 'token_out', 'token_in_amount', 'token_out_amount_min', 'token_out_amount' , 'system_fee', 'mitigator_check_status', 'oracle_amount_out', 'oracle_price', 'out_amount_diff', 'slice_factor', 'slice_factor_curve', 'status', 'block_number', 'block_timestamp', 'transaction_timestamp', 'txd', 'sender', 'to', 'sequence_swap_cnt', 'attempt_cnt', 'desired_token_in_amount']
 
     def to_list(self):
-        return [self.id, self.token_in, self.token_out, self.token_in_amount, self.amount_out_min, self.token_out_amount, self.system_fee, self.mitigator_check_status.name, self.oracle_amount_out, self.oracle_price, self.out_amounts_diff, self.slice_factor, self.slice_factor_curve, self.status.name, self.block_number, self.block_timestamp, self.timestamp, self.txd, self.sender, self.to]
+        return [self.id, self.token_in, self.token_out, self.token_in_amount, self.amount_out_min, self.token_out_amount, self.system_fee, self.mitigator_check_status.name, self.oracle_amount_out, self.oracle_price, self.out_amounts_diff, self.slice_factor, self.slice_factor_curve, self.status.name, self.block_number, self.block_timestamp, self.timestamp, self.txd, self.sender, self.to, self.sequence_swap_cnt, self.attempt_cnt, self.desired_token_in_amount]
 
     @staticmethod
     def save_all(filename):

@@ -1,6 +1,4 @@
-from numpy import block
 import pandas as pd
-
 import logging
 from volatility_mitigation import VolatilityMitigator
 from transactions import BurnTransaction, MintTransaction, SwapTransaction
@@ -9,6 +7,7 @@ from settings import PRICE_TOLLERANCE_THRESHOLD
 from big_numbers import expand_to_18_decimals
 from safe_math import q_div, q_encode
 import dsw_oracle
+
 
 logger = logging.getLogger(__name__)
 
@@ -89,11 +88,18 @@ class AMM:
         self.block_timestamp_last = self.block_timestamp_last
         
 
-    def swap(self, id, transaction):
+    def swap(self, id, transaction, slippage):
         blockchain.update(int(transaction.datetime_timestamp.timestamp()))
-        swap_transaction = SwapTransaction(transaction, self, id)
+        swap_transaction = SwapTransaction(transaction, slippage, self, id)
                 
         blockchain.receive_transaction(swap_transaction)
+
+
+    def verify_swap(self, id, transaction, slippage):
+        blockchain.update(int(transaction.datetime_timestamp.timestamp()))
+        swap_transaction = SwapTransaction(transaction, slippage, self, id, save_transaction=False)
+
+        return swap_transaction.check_execute_status(blockchain.get_curr_block_timestamp())
 
     
     def mint(self, amount_X, amount_Y, timestamp, id):
@@ -181,6 +187,7 @@ _amm = AMM("X", "Y", 800000, 800000, True)
 
 current_cumulative_prices = _amm.current_cumulative_prices
 swap = _amm.swap
+verify_swap = _amm.verify_swap
 X = _amm.get_X
 Y = _amm.get_Y
 reserve_X = _amm.get_reserve_X

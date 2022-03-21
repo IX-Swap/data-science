@@ -8,7 +8,7 @@ from big_numbers import contract_18_decimals_to_float, expand_to_18_decimals, ex
 from safe_math import q_decode_144
 import settings
 from transactions import BurnTransaction, MintTransaction, SwapTransaction
-from monte_carlo2 import Transaction 
+from trading_simulation import Transaction 
 from tqdm import tqdm
 import itertools
 

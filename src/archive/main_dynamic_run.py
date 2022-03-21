@@ -1,6 +1,6 @@
 import json
 import logging
-import random
+import re
 import numpy as np
 import pandas as pd
 import amm
@@ -10,14 +10,14 @@ from monte_carlo2 import  MonteCarloTransactionSimulator, PoissonGenerator, Tran
 import blockchain
 from big_numbers import contract_18_decimals_to_float, expand_to_18_decimals
 from transactions import SwapTransaction
-from utils import get_reserve_range_index, normalize_csv, normalize_pool_state, parse_dynamic_config, save_dict
+from utils import get_reserve_range_index, normalize_csv, normalize_pool_state, save_dict
 
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s:%(name)s:%(message)s', datefmt="%m/%d/%Y %I:%M:%S %p")
 logger = logging.getLogger(__name__)
 
 
-EXPERIMENT_ID = 64
+EXPERIMENT_ID = 47
 X_NAME = 'X'
 Y_NAME = 'Y'
 
@@ -51,7 +51,7 @@ def main():
     start_time = datetime.now()
     iteration = 0
 
-    for i in range(len(reserve_range_params_list[0]['shape'])):
+    for i in range(7, 8):#range(len(reserve_range_params_list[0]['shape'])):
         scale_list = []
         shape_list = []
 
@@ -62,28 +62,17 @@ def main():
             scale_list.append(scale)
             shape_list.append(shape)
 
-        os.makedirs(f'{BASE_DIR}/{iteration}')
-
-        transactions_history_path = f'{BASE_DIR}/{iteration}/transaction_history.csv'
-        simulate_transactions(start_time, INITIAL_RESERVES_USD, INITIAL_SEC_PRICE, scale_list, shape_list, transactions_history_path)
-        transactions = pd.read_csv(transactions_history_path)
-        transactions['token_in_amount'] = transactions['token_in_amount'].apply(expand_to_18_decimals)
-        transactions['datetime_timestamp'] = pd.to_datetime(transactions['datetime_timestamp'])
-
-        
         for subindex, vm in enumerate([False, True]):
             os.makedirs(f'{BASE_DIR}/{iteration}/{subindex}')
             amm.reset(X_NAME, Y_NAME, INITIAL_RESERVES_USD // INITIAL_SEC_PRICE , INITIAL_RESERVES_USD, vm, WINDOW_SIZE * 60 * 60, WINDOW_SIZE * 60 * 60// GRANULARITY, GRANULARITY) #todo: beautify
 
             config['volatility_mitigator'] = vm
-            config['shape'] = transactions.iloc[0, transactions.columns.get_loc("shape")]
-            config['scale'] = transactions.iloc[0, transactions.columns.get_loc("scale")]
             save_dict(f'{BASE_DIR}/{iteration}/{subindex}/config.json', config)
 
             cnt = 0
-            for key, transaction in transactions.iterrows():
+            for transaction in simulate_transactions(start_time, INITIAL_RESERVES_USD, INITIAL_SEC_PRICE, scale_list, shape_list, f'{BASE_DIR}/{iteration}/{subindex}/transaction_history.csv'):
                # print(cnt, transaction.name)
-              #  assert cnt == transaction.name, f'CNT / transaction.index mismatch, cnt = {cnt}, transaction.index = {transaction.index}'
+                assert cnt == transaction.name, f'CNT / transaction.index mismatch, cnt = {cnt}, transaction.index = {transaction.index}'
                 if transaction['datetime_timestamp'] - start_time <= timedelta(days=1):
                     amount = transaction['token_in_amount'] // 1000 
                 else:
@@ -91,44 +80,6 @@ def main():
                     
                 amm.swap(cnt, Transaction(transaction['datetime_timestamp'], amount, transaction['token_in'], transaction['token_out'], transaction['slope']))
                 cnt += 1
-
-                
-
-
-
-
-            # last_timestamp = transactions.iloc[-1].datetime_timestamp
-            
-
-            # for i in range(100):
-            #     low = 0
-            #     high = expand_to_18_decimals('10000000000')
-            #     blockchain.update(int(last_timestamp.timestamp())+15) # ???
-
-            #     while low <= high:
-            #         mid = (low + high) // 2
-
-            #         transaction = SwapTransaction(Transaction(last_timestamp, mid, X_NAME, Y_NAME, 100), amm._amm, cnt)
-            #         transaction.block_timestamp = int(last_timestamp.timestamp()) + 15
-            #         SwapTransaction.instances = SwapTransaction.instances[:-1]
-
-            #         is_ok = (transaction.check_execute_status(transaction.block_timestamp) == TransactionStatus.SUCCESS)
-            #         print(contract_18_decimals_to_float(mid), is_ok)
-
-            #         if is_ok:
-            #             low = mid + 1
-            #             assert (transaction.check_execute_status(transaction.block_timestamp) == TransactionStatus.SUCCESS), 'Error'
-            #         else:
-            #             high = mid - 1
-
-            #     if low > expand_to_18_decimals('10000000000'):
-            #         print("Unable to find amount in range, error")
-            #         break
-
-            #     amm.swap(cnt, Transaction(last_timestamp, low-1, X_NAME, Y_NAME, 100))
-            #     print('Swap size:', contract_18_decimals_to_float(low - 1), last_timestamp)
-            #     last_timestamp += timedelta(seconds=30)
-            #     cnt += 1
 
             SwapTransaction.save_all(f'{BASE_DIR}/{iteration}/{subindex}/swaps.csv')
             blockchain.reset_state()
@@ -167,9 +118,6 @@ def simulate_transactions(current_iteration_timestamp, initial_reserve, initial_
     X_scale = scale_list[reserve_range_index] 
     Y_scale = scale_list[reserve_range_index]
 
-    initial_shape = shape_list[reserve_range_index]
-    initial_scale = scale_list[reserve_range_index] 
-
     params['Y']['shape'] = params['X']['shape'] = shape_list[reserve_range_index]
     params['X']['scale'] = X_scale
     params['Y']['scale'] = Y_scale
@@ -188,7 +136,9 @@ def simulate_transactions(current_iteration_timestamp, initial_reserve, initial_
         'datetime_timestamp', 'token_in', 'token_in_amount', 'token_out', 'token_out_amount', 'slope'
     ])
 
-
+    prices = []
+    prev_reserve_range_index = 3
+    price_scale = 1
 
     for action in actions:
         if action[0] == 'PASS':
@@ -205,6 +155,7 @@ def simulate_transactions(current_iteration_timestamp, initial_reserve, initial_
 
                 shape = shape_list[reserve_range_index]
                 scale = scale_list[reserve_range_index]
+                #print(reserve_Y, reserve_range_index, shape)
                 
                 X_scale = scale_list[reserve_range_index] 
                 Y_scale = scale_list[reserve_range_index]
@@ -213,10 +164,10 @@ def simulate_transactions(current_iteration_timestamp, initial_reserve, initial_
                 params['Y']['scale'] = params['X']['scale'] = scale
 
                 for deviation in params_deviations['X']['scale']:
-                    X_scale = X_scale * (1+deviation)
+                    X_scale = X_scale * (1-deviation)
 
                 for deviation in params_deviations['Y']['scale']:
-                    Y_scale = Y_scale * (1+deviation)
+                    Y_scale = Y_scale * (1-deviation)
     
                 x_swaps_simulator.frequency_generator.mean_occurencies = params['X']['freq'] + params_deviations['X']['freq']
                 x_swaps_simulator.token_in_generator.shape = params['X']['shape'] + params_deviations['X']['shape']
@@ -240,17 +191,20 @@ def simulate_transactions(current_iteration_timestamp, initial_reserve, initial_
                 cycle_swaps = pd.concat([x_swaps_df, y_swaps_df], ignore_index=True,) # todo:check axis
                 cycle_swaps.sort_values('datetime_timestamp', inplace=True)
                 cycle_swaps.index = np.arange(len(all_swaps), len(all_swaps) + len(cycle_swaps))
+                cycle_swaps['token_in_amount'] = cycle_swaps['token_in_amount'].apply(expand_to_18_decimals)
                 all_swaps = pd.concat([all_swaps, cycle_swaps])
 
+               # print('cycle swaps:', len(cycle_swaps), 'number cycles:',   )
+                #print(cycle_swaps.datetime_timestamp.min(), cycle_swaps.datetime_timestamp.max())
+
+                #print(current_iteration_timestamp)
 
 
-                    
+                for index, swap in cycle_swaps.iterrows():
+                    yield swap
 
         elif action[0] == 'INC' or action[1] == 'DEC':
             token, param, value = action[1], action[2], action[3]
-
-            if action[0] == 'DEC':
-                value = -value
 
             if param == 'scale':
                 params_deviations[token][param].append(value)
@@ -264,13 +218,72 @@ def simulate_transactions(current_iteration_timestamp, initial_reserve, initial_
             else:
                 params_deviations[token][param] = 0
 
-
-
-        
-
-    all_swaps['shape'] = initial_shape
-    all_swaps['scale'] = initial_scale
+    all_swaps['token_in_amount'] = all_swaps['token_in_amount'].apply(contract_18_decimals_to_float)
     all_swaps.to_csv(transaction_history_path)
+
+
+def parse_dynamic_config(filename):
+    initial_params = {
+        'X': {
+            'freq': None
+        },
+        'Y': {
+            'freq': None
+        }
+    }
+
+    actions = []
+
+    with open(filename, 'r') as f:
+        lines = f.readlines()
+
+        tokens0 = lines[0].split()
+        tokens1 = lines[1].split()
+
+        assert tokens0[0] == 'ASSIGN'
+        assert tokens0[1] == 'X'
+        assert tokens0[2] == 'freq'
+
+        assert tokens1[0] == 'ASSIGN'
+        assert tokens1[1] == 'Y'
+        assert tokens1[2] == 'freq'
+
+        hourly_freq_X = tokens0[3]
+        hourly_freq_Y = tokens1[3]
+
+        initial_params['X']['freq'] = float(hourly_freq_X) / 60 
+        initial_params['Y']['freq'] = float(hourly_freq_Y) / 60
+
+        for line in lines[2:]:
+            tokens = line.split()
+
+            command = tokens[0]
+
+            if command == 'PASS':
+                interval, unit = re.findall(r'[A-Za-z]+|\d+', tokens[1])
+                interval = float(interval)
+
+                assert unit == 'h'
+
+                actions.append((command, int(interval*60))) # convert to minutes
+
+            elif command == 'INC' or command == 'DEC':
+                token = tokens[1]
+                param = tokens[2]
+                value = float(tokens[3]) / 60 # convert to min frequency
+
+                actions.append((command, token, param, value))
+            elif command == 'NORMALIZE':
+                token, param = tokens[1], tokens[2]
+
+                actions.append((command, token, param))
+
+    print("Initial params:\n", initial_params)
+    print("Actions:\n", actions)
+
+    return initial_params, actions
+
+
 
 if __name__ == '__main__':
     main()
