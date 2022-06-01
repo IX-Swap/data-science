@@ -1,1 +1,0 @@
-c:\workspace\data-science\script_check\ts_part/data/real_transactions/experiment_1
