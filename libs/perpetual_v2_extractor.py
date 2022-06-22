@@ -484,7 +484,7 @@ def position_closes_list_to_dict(position_close: list) -> dict:
     trader = position_close["trader"]
     base_token = position_close["baseToken"]
     closed_position_size = position_close["closedPositionSize"]
-    closed_position_notional = position_close["closed_position_notional"]
+    closed_position_notional = position_close["closedPositionNotional"]
     open_notional_before_close = position_close["openNotionalBeforeClose"]
     realized_pnl = position_close["realizedPnl"]
     closed_price = position_close["closedPrice"]
