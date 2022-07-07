@@ -1,226 +1,165 @@
 # IXSwap Economics stress-testing
-- <a href="">Trading Activity</a> (to be added)
+- <a href="">Perpetual analysis</a> (to be added)
 - <a href="https://github.com/IX-Swap/models-testing/tree/amm">AMM prototype and simulations</a>
 
 # Introduction
 
-Current repository contains two parts: traders activity simulation models with transaction histories and AMM market simulation. Current readme will cover general description of both parts in detail, referring to the inner project structure, code fragments and explaining some solutions closely. Each project part has its own branch and each branch will have a local readme file only about the part where it is inserted.
+Current branch contains analysis of the Perpetual V1 and V2 mechanisms to see how they deal with trading activity on the futures crypto markets. Both versions have their own chapters with separate reviews because of the fundamental differences between realizations of those platforms. Current file will contain general description of the analysis, while more detailed view can be accessed in the files mentioned inside this readme and in separate document.
 
-* [Traders activity simulations and structure](#traders-activity-simulations-and-structure):
-  * [General description of the project structure](#general-description-of-the-project-structure)
-  * [Monte Carlo simulations](#monte-carlo-simulations):
-    * [Normal distribution generator](#normal-distribution-generator)
-    * [Log-Normal distribution generator](#log-normal-distribution-generator)
-    * [Pareto distribution generator](#pareto-distribution-generator)
-    * [Cauchy distribution generator](#cauchy-distribution-generator)
-    * [Monte Carlo transaction simulator](#monte-carlo-transaction-simulator)
-    * [Simulations with best match to the real life distributions](#simulations-that-have-the-best-match-with-real-life-distributions)
-    * [Parameter search algorithms](#parameter-search-algorithms)
+Considering that mostly versions of the V1 and V2 are similar, description of the V1 will cover the general concept of the Perpetual protocol and how it works, while description of the V2 will cover only differences with the V1. For each of the chapters will be specified notebooks that cover respective information. The overall structure:
 
-# Traders activity simulations and structure
+* Perpetual V1:
+  *  General description; 
+  *  Positions and their changes;
+  *  Leverage, margin and liquidations;
+  *  Funding payments and its regulation;
+  *  Problems with V1
+* Perpetual V2:
+  *  General description; 
+  *  Positions and their changes;
+  *  Providing liquidity and regulation;
+  *  Funding payments and its regulation;
+  *  Leverage or buying power. 
 
-## General description of the project structure
+# Perpetual V1
 
-Current project part contains realization of the traders activity simulations using specific mathematical distribution models and traders activity histories with both scripts collecting transactions of different categories for specified pools and analysis of those transactions histories for each pool. All files in the project were separated into packages and libraries conform to their role in the project. One of the main packages is the ```lib``` one, containing ```.py``` files with the most important classes in the project:
+## General description
 
-* ```monte_carlo.py``` - file with realization of Monte-Carlo simulation classes:
-  * ```Transaction``` class - allows simulating swap-based transactions on the AMM market;
-  * ```PoissonGenerator``` class - responsible for defining amount of transaction happening per minute using Poisson distribution probability principle;
-  * ```NormalGenerator``` class - sets transaction values randomly conform normal distribution;
-  * ```LogNormalGenerator``` class - sets transaction values randomly conform log-normal distribution;
-  * ```CauchyGenerator``` class - sets transaction values randomly conform Cauchy distribution;
-  * ```ParetoGenerator``` class - sets transaction values randomly conform Pareto distribution;
-  * ```MonteCarloTransactionsSimulator``` class - responsible for creating required transaction history using specific (chosen) transaction values generator;
-  * ```LogNormalParameterSearcher``` class - picks best parameters to make log-normal distribution look as close as possible to the given distribution;
-  * ```CauchyParameterSearcher``` class - picks best parameters to make Cauchy distribution look as close as possible to the given distribution.
-* ```uniswap_v2_extractor.py``` - file with realization of classes used to extract transaction histories for specified contracts from Uniswap V2:
-  * ```get_pool_v2_reserves_history``` extracts list of reserve updates, ```list_to_reserves_dictionary``` changes data type of reserves update record data from list to dictionary which be further inserted into Pandas DataFrame, ```pool_reserves_to_df``` performs transformation of list of lists reserves updates into reserves history Pandas DataFrame;
-  * ```get_pool_v2_history``` extracts swap-transactions history from Uniswap V2. ```list_to_transaction_dictionary``` transforms swap-transaction data from list into dictionary, ```pool_history_to_df``` performs swap-transaction history from list of lists form into Pandas DataFrame;
-  * ```get_pool_v2_mints``` and ```get_pool_v2_burns``` extract list of burns and mints histories in lists form, ```list_to_mints_dictionary``` changes each burn or mint record from list to the dictionary form, ```pool_mints_to_df``` and ```pool_burns_to_df``` transform burns or mints histories for lists of lists into Pandas DataFrames;
-  * ```filter_swaps``` extract direct swaps and other ones (like “flash” ones), separating them.
-* ```uniswap_v2_plots.py``` - file containing plots functions:
-  * ```show_swaps_count_moving_averages``` - show moving daily average and one week rolling average line plots for swaps operations count;
-  * ```show_swaps_reserves_evolution_through_time``` - show reserves changes line plots through time for specified pool;
-  * ```show_pool_price_evolution_from_reserves``` - show reserve-based token prices line plots through time;
-  * ```show_swaps_amount_in_moving_averages``` - show swaps activity capitalization (counted respective to tokens) for one day and week rolling average through time;
-* ```transaction_history_v3_tools.py``` - file containing class used to work with transaction histories taken from Uniswap V3. Class contains some specific big methods to work with V3 histories:
-  * ```classify_history``` separate transaction history conform their properties (swaps, mints, burns, anomalies);
-  * ```form_moving_averages_for_token``` creates distributions one day average and one week rolling average for each transaction type for specified token;
-  * ```lineplots_matrix``` shows matrix of line plots charts;
-  * ```histplots_matrix``` shows matrix of histograms charts;
-  * ```show_transactions_frequencies_per_minute``` prints transaction frequency for each transaction type per minute;
-  * ```show_min_max_values_by_token``` prints minimal and maximal values for each transaction type;
-  * ```lineplots_moving_averages_matrix_by_token``` shows line plots moving averages by token matrix.
+Conform the documentation from the official website of the Perpetual protocol it represents an open source software project of a perpetual futures DEX which runs on the blockchain (in case of V1 it runs on the xDAI). Futures are derivatives (meaning that they are not representing the real assets), "virtual" assets that are following the price of the respective real asset. Traditional futures have an expiry date and the price of the asset is shifted back to the actual one at the expiry date. Perpetual futures do not have any expiry date and therefore price shift to the real one is made via using funding payments, when trader receives reward from the platform in case if current activity shifts local price to the real market one. Otherwise, trader is paying this reward to the platform for causing price shift too far from the real one.
 
-Other packages mostly contain Jupyter Notebooks dedicated to collecting, reviewing and analysing the data required for this project implementation. Considering that below are presented short descriptions for each package and each notebook presented in the project:
+In case of performing activity as a trader there are two options:
 
-* ```monte_carlo_generator``` package contains one Jupyter Notebook named ```Monte_carlo_versions``` dedicated to different implementations of the Monte-Carlo algorithms and how they can be used, how to work with them;
-* ```web_scrapper``` package contains all files related to collecting the data of insiders trades for shares. ```chromedriver.exe``` is a web-driver required for collecting the data from the Yahoo Finance web-page containing insiders trades history using Selenium framework. ```web_scrapper.py``` contains code required for scrapping the data out of the web-page. ```web_shares_scraping``` Jupyter Notebook contains scripts collecting the data;
-* ```shares_insiders_history``` is a package containing the data about insiders trades and Jupyter Notebook ```fast_shares_analysis``` with small analysis of the Yahoo Finance insiders shares trades;
-* ```pools_history``` contains first drafts of the Monte-Carlo simulations and their prototypes, scripts for collecting Uniswap V3 pools data and their analysis;
-* ```uniswap_v2_pools_analysis``` package contains ```uniswap_USDC-ETH_v2``` Jupyter Notebook that contains work for collecting and analysing the data from Uniswap V2, basing on which was performed next collection and analysis of the data, ```v2_pools_analysis``` contains first Uniswap V2 pools extractions with examples of fitting Monte-Carlo simulations to be close to the real Uniswap V2 histories
-* ```real_v2_pools_stories``` package contains all performed Uniswap V2 pools history analysis with different versions of the history extraction. For analysis, different token pairs containing altcoins, stablecoins, NFTs, STOs, meme-tokens.
+* Setting a long position. In this case trader expects price to go up and there is performed "purchase" of the respective virtual token. When trader closes long position there is performed a sell of those virtual tokens in the background and trader gets profit in case of a higher selling price compared to the original buying price;
+* Setting a short position. In this case trader expects price decrease and performs "sell" of the virtual token. When trader performs close of the short position, platform buys those virtual tokens from the trader and trader gets profit if selling price was higher than the buying one.
 
-The next part covers more detailed code description, its most important moments and general aspects of work.
+Concept of the futures is based on the vAMM principle, which represents modified concept of the AMM. vAMM provides the same concept of liquidity providers (providing tokens for performing trades and receiving reward in a fees form) and traders (swapping available tokens), but instead of using real tokens as in case of AMM, vAMM uses synthetic tokens. Synthetic tokens provide option of making leveraged trades (in case of Perpetual, up to x10) based on collateral tokens locked in the platform "vault".
 
-## Monte-Carlo simulations
+First generation of the vAMM (and the first version of the Perpetual) uses the same formula as in the standard AMM for price discovery (standard k-based formula), but adds concept of "leverage" used for making higher reserves and trades. Both the first and the second versions are using USDC as a collateral token.
 
-This chapter will be described with the next structure:
+All of the presented data was collected from the original Perpetual subgraph (link: https://thegraph.com/hosted-service/subgraph/perpetual-protocol/perp-position-subgraph?query=List%20PositionChanged%20events). There are two folders in the ```perpetual``` folder:
 
-* Transaction frequency or Poisson distribution;
-* Transaction value generators:
-* Pareto distribution
-* Normal distribution
-* Log-normal distribution
-* Cauchy distribution
-* Value generator that has the best correlation with the real data
-* Parameters searchers for picking the best parameters for the best value generators
+* ```data_collection``` - covers the first steps in performing data analysis with first tries in collecting the data and some initial data analysis notebooks.
+* ```second_investigation_wave``` - covers advanced approach in performing the data analysis with search for the more "in-depth" info.
 
-### Transaction frequency generator or Poisson generator
+## Positions and their changes
 
-The first problem that appeared during implementation of the transaction history simulation was the fact that there is some average transaction frequency per specified time interval, but transaction count per specified time interval is unstable, meaning that different time periods have different amounts of transactions happening. Another moment is that transactions are happening in different positions on the specified time intervals. To solve those problems it was decided to use Poisson distribution generators.
+As mentioned above there are two options for a trader to open a position: long and short. Each new position and its change causes shift the token price. 
 
-Poisson distribution is a discrete probability distribution that expresses the probability of a given number of events happening in fixed time intervals with a constant mean rate and independently from the last event time (it can also be applied to other metrics like distance). The formula for the Poisson Distribution is:
+In case of long position, price of the token is increasing on the platform. From overall perspective it covers concept of "optimistic expectations from token" and therefore price is increasing. In case of looking into the working mechanism can be seen that there actually was performed "purchase" of respective virtual token, decreasing its balance inside pool and leading to price increase for this token.
 
-![Poisson distribution formula](./formulas_images/poisson_distribution.PNG)
+In case of a short position, price of the token is decreasing. From overall perspective it covers concept of "negative expectations from token" and therefore price will be decreasing. In the background, because of happening "token sell" process balance of those tokens inside pool will increase and their price will drop. Each position change (or each trade) causes trader to pay for the fees, 50% of which are going to the transaction fees pool and another 50% are directed into insurance fund (used for covering unexpected losses).
 
-where *e* is representing Euler’s number, *x* represents the number of event occurrences, *lambda* is equal to the expected value of *x* also equal to its variance. 
+From actual point of view each change of the position represents swaps of virtual assets inside virtual pool, but conform concept, for example, decrease of the long position by 50% will be covered/made by opening a short position by the 50% size of the long position. Considering those properties it is possible to make "close" of the position via position on the other trading side with the same size. What happens actually in this time is that in case of having a 5 vETH long position trader is making a 5 vETH short position and in the background 5 vETH tokens are "sold" to the platform, closing the position and setting position balance of the trader to 0.
 
-```NumPy``` library contains a ```random``` module with method ```poisson``` which creates values that conform to Poisson distribution based on the transmitted parameters. It generates the amount of transactions that happen during a specific time interval, but it is required to specify transaction timestamps. This moment is solved by applying random timedelta to the given time interval starting timestamp for each transaction separately. 
+For tracking size of the position there is a "balance" of virtual assets locked for this trader. Negative value of the balance demonstrates short position, while positive value of the balance covers long position. Each new position (or position change) influences on the balance of this position.
 
-### Normal distribution generator
+Any price changes on the platform influence profits and losses extracted from the presented position. Considering that there is a possibility for a trader to make a position that will lead to the extreme losses it is required to have a regulation mechanism that will liquidate position in case of losses going too far and dangerously close to extracting all money that trader provided to the platform. This concept is regulated via concept of the position liquidation, which depends on the leverage and margin.
 
-Normal distribution is also a normal probability distribution for a real-valued random variable that contains next formula:
+In the ```data_collection``` folder there are two files ```check_position_connections``` and ```check_position_connections_2``` covering initial steps in performing positions analysis with search for data connections/patterns. Considering that trader is able to close position via reducing position size independent from its side to 0, it was required to check if there are some patterns in opens/closes of the data. For that there are files ```positions_opens_closes_indexation``` covering the estimation of opened and closed positions ID for each of the traders on each of the pools. Analysis of this aspect is covered in ```analysis_opens_closes```.
 
-![Normal distribution formula](./formulas_images/normal_distribution.PNG)
+During basic analysis of the data was discovered that there are many bots performing their activity on the platform. Therefore, their activity was analyzed in three files called as ```bots_analysis``` files based on the data from ```time_window_analysis```. 
 
-where *mu* is the mean or expectation of the distribution, *sigma* is the standard deviation, *e* is Euler’s constant. This distribution will be used for generating transaction values. The only problem that it is required to solve - a normal distribution generator is able to create negative values, which can not be applied to the transaction values. To solve this issue it is required to use a truncated normal distribution.
+To find aspects influencing collected profits and losses there is a need to dive into the file called as ```search_for_pnl_dependencies```. As one of the first steps in the "second investigation wave" there was verification of the daily PnL respective to different trading aspects (look for ```Daily_PnL_respective_to_different_aspects``` file inside package called ```second_investigation_wave```).
 
-```Scipy.stats``` module contains a function called ```truncnorm``` dedicated to generating truncated normal distribution conform specified values interval. This function works with ```mu``` parameter representing mean distribution value, ```sigma``` representing standard deviation of the distribution, ```lower bound``` and ```upper bound``` representing values interval. Values are generated with next call:
+Considering presence of the bots on the platform with an option of having arbitrage (because of the difference between local price with the global one or on other markets) and to see if there is a great impact because of those arbitrages it was decided to compare behavior of the traders with local price distribution and FTX price distribution of the respective tokens. It is reviewed in the files ```positions_price_analysis```.
 
-```python
-return truncnorm.rvs((self.lower_bound - self.mu)/self.sigma, (self.upper_bound - self.mu)/self.sigma, loc=self.mu, scale=self.sigma, size=transactions_count)
-```
+## Leverage, margin and liquidations
 
-### Log-normal distribution generator
+To understand regulation mechanism of the platform there is a need to dive into understanding of margin and leverage first, then going to the liquidation mechanism.
 
-Log normal distribution is the probability distribution of a random variable whose logarithm is normally distributed. Conform this distribution generated value x can be described by the formula:
+When trader is entering into the market he/she must provide some money as guarantee to the platform that it is going to take in case of trader getting losses. Those funds are specified as "margin" - money balance that can be used to pay for the losses. In case of getting profits this balance is becoming bigger, but in the case of losses it decreases.
 
-![Lognormal distribution formula](./formulas_images/log_normal_distribution.PNG)
+Based on this "balance" or "margin" positions are opened and conform Perpetual specifications leverage can be set up to 10x. What does it mean? Leverage is a multiplier that can be applied to your position for increasing its capitalization and therefore take more tokens for setting long/short position. It means that in case of trader providing 100 USD of margin using leverage it will be possible to create a position with capitalization up to 1000 USD. With higher leverage value there are collected higher profits and higher losses (higher risk is paid with higher outcome).
 
-where *Z* is a standard normal variable, *mu* represents distribution mean and *sigma* - standard deviation. Considering that traders' activity has extreme rises and drops it is required to consider such a case, which is covered by this type of distribution.
+First version of the Perpetual uses concept of "separate margin" meaning that for each pool (token) there must be specified a separate margin and trader has option of making trades on all of the pool (or with all tokens) in case of providing margin for all of them. The maintanance margin is equal to 6.25% meaning that in case of position margin ratio dropping below 6.25% position will be automatically liquidated to avoid losses that can not be covered by trader.
 
-```numpy.random``` module contains ```lognormal``` function used for generating values conforming to Log-Normal probability distribution working by a similar principle as previous methods of sigma and mu parameters.
+Trader is able to avoid liquidation via changing position to adapt to changing market conditions, make it smaller. It is important to understand that liquidation refers to complete close of the position by the third person, while changing position to 0 means "close" of the position by the trader himself/herself.
 
-### Pareto distribution generator
-	
-Pareto distribution is the power-law probability distribution that is used in description of social, quality control, scientific, and other types of phenomenons. The base principle behind this distribution is the “80 to 20” rule that describes distribution of wealth in society and therefore this distribution should cover better traders' activity simulation tasks. The probability distribution function is:
+This aspect is analyzed in the file called as ```pnl_respective_to_margin_price``` in the ```perpetual``` folder, where is reviewed impact of the margin, leverage and price distributions on the collected profits or losses. The liquidation aspect is reviewed in the position analysis and the ```liquidation_experiments``` file.
 
-![Pareto distribution formula](./formulas_images/pareto_distribution.PNG)
+## Funding payments
 
-where *x_m* is a minimal possible value of *X* (also called as ```scale``` parameter) and shape parameter *a*.
+Previously, in the general description of the platform was mentioned that trader moving mark price farther from the index one are paying funding payments, while traders moving mark price closer to the index one are receiving those payments. Positive value of the payment in the tables means that trader paid funding payment (negative value means that trader received the payment). The overall mechanism can be described by the simple mechanism:
 
-```numpy.random``` module has a function called ```pareto``` that is responsible for generating the Pareto distribution.
+1. Mark price = 1000 USD | Index price = 1015 USD
+   
+   Short position pays funding
+   
+   Long position earns funding
 
-### Cauchy distribution generator
+2. Mark price = 1015 USD | Index price = 1000 USD
+   
+   Short position earns funding
+   
+   Long position pays funding
 
-Cauchy distribution is a probability distribution of the x-intercept of a ray issuing from (x0, ) with a uniformly distributed angle. Formula:
+Funding payments are paid or received for all opened positions meaning that with paying funding payment margin is slowly decreasing and this can even lead to position liquidation. The mechanism behind settling the funding payment is in comparing contract price (price when position was estimated) to the spot price.
 
-![Cauchy distribution formula](./formulas_images/cauchy_distribution_formula.png)
+Detailed principles and formulas behind funding payment mechanisms can be found on the official Perpetual documentation.
 
-where *x0* is locational parameter setting location of the distribution peak and *mu* is the scale parameter which specifies the half-width and half-maximum.
+## Problems with V1
 
-```scipy.stats.halfcauchy``` module contains the ```rvs``` function which is responsible for generating values conforming to the Cauchy distribution without negative values, meaning that generated values will match real transactions values.
+Conform collected information was seen that traders mostly collect funding payments and there are small payments to the platform creating disbalance with more money going out of the platform. This leads to Perpetual platform losses that can lead to the critical situations on the platform. To understand problem behind this concept it is required to see one example.
 
-There is still one problem remaining about Cauchy - it is able to give unrealistically big transaction values, meaning that there is a small chance that there will appear anomalous value which is not corresponding to the real world case. This problem was solved via “mapping” values mechanism, graphical representation of which can be understood from given example:
+Imagine that there is a PERP token with that launched with price equal to 5 USD. Current price is equal to 17 USD meaning that there is a need to open long positions and remain open until desired price would be achieved. No shorts are needed on this stage. If funding goes positive (meaning that traders start to pay funding payments), longs exit making funding payments values negative again (meaning that traders receive rewards again). It means that all traders and all positions can receive payments.
 
-![Cauchy distribution mapping](./distributions_images/cauchy_distribution_mapping.png)
+Conform official documentation another problem of the platform was in slow execution of the transactions (up to 5 seconds for transaction confirmation). There were also problems with node reliability leading to the cases of transaction confirmation time going up to several minutes.
 
-“Mapping” formula:
+There is one interesting aspect influencing both V1 and V2, which is not a problem, but creates some risks for the platform. Bots. They represent most of the activity presented on both platforms (most of the losses, profits, fees, payments) and in case of them leaving the platform there will appear an activity gap and it is questionable if count of real persons will be enough for Perpetual to work. Another problem is that in bots are able to collect extreme profits and have some giant positions on the platform. In case of those bots to leave there can appear a great gap, leading to instability of the platform and possible need to activate insurance funds (this happened during 16 May 2022, when entire Perpetual was shut down with further "sunset" because of the liquidation of the big position on the vCREAM market, link: https://messari.io/governor/proposal/d39e87eb-92ab-4ce9-a583-6818a47ed61e). This can be a unique case, but amount of bots present on the system, cases of the big positions maintained by those bots lead to the possibility of the new case, that can happend in the future.
 
-![Cauchy mapping formula](./formulas_images/cauchy_distribution_formula.png)
+# Perpetual V2
 
-where the *generated value* is representing the original Cauchy generated value, the *limit* demonstrates the upper bound of the possible values. Such an algorithm allows keeping the original Cauchy distribution almost unchanged (without breaking the probabilities) and producing values only of specific limit.
+## General description
 
-```python
-return value / ((value // self.limit) + 1)
-```
+Overall concept of the Perpetual is similar to the V1, but with several improvements:
 
-### Monte Carlo transaction simulator
+1. Faster transaction execution/confirmation because of using Optimism network;
+2. Use of Uniswap V3 under the hood;
+3. Liquidity provisions with leverage;
+4. Cross-margin mechanism;
+5. Concentrated liquidity;
+6. Multi-collateral
 
-There are four different approaches to generating transaction values and it is needed to connect a transaction value generator with a transaction rate generator. For those purposes was created a ```MonteCarloTransactionsSimulator``` which accepts a Poisson distribution as a frequency generator and any of the transaction values generator to generate transaction values.
+Usage of the Uniswap V3 under the hood leads to interesting aspect of performing position changes. As was mentioned previously each position change in the background represents purchase/sell of the virtual token (swap) and each position change is represented by the swap of the token inside virtual pool on the Uniswap V3. While swaps on the Uniswap on real pools contain capitalization parameter depending on the prices of assets used in swaps, swaps of virtual tokens have capitalization equal to 0 (covering the aspect of 0 value for virtual tokens outside of the Perpetual platform). Because of the swap-based behavior of the system and structure of the vAMM it is possible to perform MEV attacks (such an option is even mentioned in the official documentation), but after analysis there were no attacks detected (there important notes in the respective chapter).
 
-The main requirements to the transaction value generator are to contain a ```generate_transactions``` function accepting last known timestamp forming new object of ```Transaction``` class writing it into the ```transaction_history``` array, and be pre-initialized with all required generation parameters
+On the updated version of the Perpetual can be used leverage liquidity mechanism, giving maker an option to scale up amount of provided tokens virtually. Maker also specifies price range in which provided liquidity will be used with both of the provided tokens - concentrated liquidity mechanism. Conform this concept, maker specifies upper tick and lower tick - values that are used in a specific formula to demonstrate a price range where provided liquidity will be used on both sides. Closer is the exchange price to the central tick (value between upper and lower tick) and smaller is the tick range - bigger is the amount of fees collected by the maker. In case of the exchange price to go out of the specified price range there will be used only one of the provided tokens and no fee reward going to the maker.
 
-```python
-timestamps = self.frequency_generator.generate_transactions(current_timestamp)
-token_in_values = self.token_in_generator.generate_transactions(len(timestamps))
-       
-    # form new transactions and record them into 'transaction history' variable
-    for index in range(len(timestamps)):
-        self.transaction_history.append(Transaction(
-             timestamp=timestamps[index],
-             token_in_amount=token_in_values[index],
-             token_in=self.first_currency,
-             token_out=self.second_currency
-        ))
-```
+While the first version of Perpetual suggested specification of the margin for each pool separately where position is opened, the second version uses concept of cross-margin. Conform it, trader sets a common margin that is used by all positions on all pools covered by this trader. To make it possible to "track" trader's positions and see when it is required to liquidate positions there is specified a limit for up to 5 pools (tokens) in parallel where trader is allowed to have positions.
 
-Such a structure allows further adding new transaction value generation strategies if required. Below are presented different examples of how Monte Carlo simulations should be called:
+To make work with Perpetual even more comfortable in the second version is introduced mechanism of the multi-collateral. For setting margin, getting fees and so on in the first version and in the beginning of the second one there was specified only USDC token. With multi-collateral update there are new options of setting other collateral tokens.
 
-```python
-# several simulators, where each uses its unique values generator
-normal_simulator = MonteCarloTransactionSimulator(
-    PoissonGenerator(cycle_size=60000, mean_occurencies=2),
-    NormalGenerator(mu=0, sigma=4500, lower_bound=0, upper_bound=10000), 'ETH', 'DAI')
- 
-cauchy_simulator = MonteCarloTransactionSimulator(
-    PoissonGenerator(cycle_size=60000, mean_occurencies=2),
-    CauchyGenerator(loc=0, scale=1000), 'ETH', 'DAI')
- 
-pareto_simulator = MonteCarloTransactionSimulator(
-    PoissonGenerator(cycle_size=60000, mean_occurencies=2),
-    ParetoGenerator(shape=3), 'ETH', 'DAI')
- 
-lognormal_simulator = MonteCarloTransactionSimulator(
-    PoissonGenerator(cycle_size=60000, mean_occurencies=2),
-    LognormalGenerator(mean=0, sigma=1), 'ETH', 'DAI')
+General and simple explanation of the data available on the Perpetual V2 subgraph is shown in the file ```description_of_tables```.
 
-# set current timestamp as starting point and start loop, where each iteration shifts reviewable
-# timestamp further conform simulator cycle size
-current_iteration_timestamp = datetime.now()
-for index in range(60*24*7):
-    normal_simulator.generate_transactions(current_iteration_timestamp)
-    cauchy_simulator.generate_transactions(current_iteration_timestamp)
-    pareto_simulator.generate_transactions(current_iteration_timestamp)
-    lognormal_simulator.generate_transactions(current_iteration_timestamp)
- current_iteration_timestamp += timedelta(milliseconds=normal_simulator.frequency _generator.cycle_size)
-```
+## Positions and their changes
 
-### Simulations that have the best match with real life distributions
-	
-All presented above distributions can be used for simulating transaction values, but it is important that simulation-based and real life-based distributions should have similar shapes. The best ones are the log-normal distribution and Cauchy one.
+The problem of the current subgraph realization if that it covers position-related data, but does not provide direct information about used buying power for this position (or leverage info) or margin info for this exact position. Therefore, it was required to reconstruct money balance for each trader separately and consider it for all opened at the moment positions. In case of further analysis it will be required to either consider this aspect, or to search for the margin (or leverage) info in the subgraph (maybe will appear in future updates).
 
-![Cauchy Lognormal real distributions](./distributions_images/lognnormal_cauchy_real_distributions.PNG)
+Positions were analyzed in the files ```trader_position_changes_analysis``` (all respective parts), ```position_changes_detailed```, ```making_master``` (creation of the "master" table with all position-related info). There are also ```position_histories_detailed``` files with analysis of the removed table from the subgraph.
 
-From the left to the right are lognormal distribution, Cauchy distribution and real transaction values distribution. Considering that those distributions are able to match real life distributions it is required to write an algorithm able to automatically pick best parameters for specified distributions.
-### Parameter search algorithms
-	
-Considering that the best distributions are log-normal and Cauchy ones it was decided to write parameter picking algorithms that will be able to find the best parameters combination.
+## Providing liquidity and regulation
 
-The first problem that requires solution - how algorithm will pick the best possible parameters combination, considering that all probability distribution simulations generate different values and therefore distribution can have small deviations causing probability of one launch to perform better than another one and in order to check overall efficiency it is required to perform check with multiple simulation runs (creating an average picture). Another moment is how an algorithm will check if one distribution is “similar” or “matching” another one.
+The second version of Perpetual implemented concentrated liquidity mechanism and therefore it was required to review all liquidity provisions and updates to see behavior of the makers. This was reviewed in the files ```liquidity_analysis``` (both parts), ```liquidity_second_step```, ```making_maker_master```.
 
-Harmonic mean formula:
+## Funding payments and its regulation
 
-![Harmonic mean formula](./formulas_images/harmonic_mean.png)
+One of the main differences between funding payments on V1 and V2 is that V1 performed estimation of the funding payments on hourly basis, while V2 based funding payments are working on their estimation on the block-based principle. Considering that makers are also shifting the token price (depending on their tick range specified for liquidity provision) they are also paying the funding payments. The funding rate on V2 totally depends on the size of difference between local price and market one.
 
-is working for two parameters. It means a harmonic two-error formula can be used to define the best possible parameters combination. Conform reviewed during the project distributions the first half of values present in distributions are the most important ones and there can be compared first quartiles and medians of two distributions, where the first distribution is a real one and the second one - simulated one. So the final representation of finding harmonic mean error is:
+Detailed description of the funding payments working mechanisms - https://blog.perp.fi/block-based-funding-payment-on-perp-v2-35527094635e
 
-![Harmonic mean error formula](./formulas_images/harmonic_mean_error.png)
+This aspect of the platform was reviewed in the files ```funding_analysis```, ```funding_detailed``` and in files covering either position changes, or liquidity changes.
 
-and the model will pick as best parameters such ones, where average harmonic mean error for all launches of the simulation will be minimal.
+## Leverage or buying power
 
-There is a range of parameters iterating through which is performed via incrementing parameter from lower bound to upper one using a step parameter. All intermediate results (each parameter set and their average harmonic error) are saved and the smallest average harmonic mean error parameter pick is chosen.
+The problematic difference between V2 subgraph and V1 is that in the V1 was specified information about the margin, because each of the markets contained isolated margin for trader, meaning that it was not shared between pools (different opened positions). With shared margin specification of the trader margin is gone and the only way to find it was via calculation of the money balance per trader on the entire platform.
 
-Using those principles are written ```CauchyParameterSearcher``` and ```LognormalParameterSearcher``` classes. Below is a presented example of how the distribution of harmonic mean error is picked for ```scale``` parameter starting from value 5000 till value 25000 with step of 10 and performing 1000 simulation runs.
- 
+Leverage concept was replaced by the "buying power". Considering that right now margin is shared between all positions opened by the trader, used buying power is specified based on the capitalization of opened positions and "ratio" of used buying power per pool can be found as ratio of position capitalization to the money balance (or shared margin). In the documentation is specified approach for finding the money balance and tracking used buying power.
+
+Those aspects are covered in the ```master_trader_analysis``` (all 3 parts)
+
+## The main problem with Perpetual V2
+
+Efficiency of the analysis performed over Perpetual V2 is questionable at the moment because of the applied updates to the platform and the subgraph of Perpetual through the entire time of performing data analysis and even at the moment of writing current readme. The second version of Perpetual has launched in November 2021 and therefore many pools (tokens) have small history with a small time window (some of the pools even appeared in the end of Winter 2022 and through Spring 2022).
+
+Additional aspect that caused uniqueness of the taken time window is that during this time period started a crisis on many cryptomarkets and there were registered several drops in the token prices. Because of that, some of the demonstrated events are unique and do not cover expected behavior of the traders.
+
+The first version of the Perpetual had downfall because of the extremely big position liquidation happened and during analysis of the Perpetual V2 was discovered that there is still a big part of the activity represented by the bots with big positions. Probability of the critical situation is smaller becuase of the fixed funding payment mechanism and increasing insurance funds, but it is required to consider such an option.
